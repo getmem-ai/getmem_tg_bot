@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera, Trash2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { User } from "@/lib/types";
@@ -62,6 +63,18 @@ export function ProfileEditor({ user, onClose, onSaved }: ProfileEditorProps) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [message, setMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Portal to <body> so the sheet escapes the profile card's stacking context
+  // and overflow; lock background scroll while open.
+  useEffect(() => {
+    setMounted(true);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const initial =
     user.first_name?.trim()?.[0] || user.username?.trim()?.[0] || "U";
@@ -104,9 +117,11 @@ export function ProfileEditor({ user, onClose, onSaved }: ProfileEditorProps) {
     }
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Edit profile"
@@ -190,6 +205,7 @@ export function ProfileEditor({ user, onClose, onSaved }: ProfileEditorProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
