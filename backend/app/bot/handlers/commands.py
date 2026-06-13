@@ -64,7 +64,7 @@ async def cmd_me(
             if is_premium and user.premium_until
             else None
         )
-    limit = (await config.tier_for(is_premium)).daily_limit
+    limit = (await config.tier_for_user(user)).daily_limit
     await message.answer(
         texts.me(
             tier="premium" if is_premium else "free",
@@ -84,9 +84,8 @@ async def cmd_model(message: Message, db: Database, config: ConfigStore) -> None
         return
     async with db.session() as session:
         user = await repo.get_or_create_user(session, tg.id)
-        is_premium = user.is_premium
         current = user.preferred_model
-    tier = await config.tier_for(is_premium)
+    tier = await config.tier_for_user(user)
     model_ids = [m.id for m in tier.models]
     await message.answer(
         texts.MODEL_PICK,
@@ -104,7 +103,6 @@ async def on_model_pick(
 
     async with db.session() as session:
         user = await repo.get_or_create_user(session, callback.from_user.id)
-        is_premium = user.is_premium
 
         if value == keyboards.AUTO_VALUE:
             await repo.set_preferred_model(session, callback.from_user.id, None)
@@ -112,7 +110,7 @@ async def on_model_pick(
             await callback.answer()
             return
 
-        tier = await config.tier_for(is_premium)
+        tier = await config.tier_for_user(user)
         if value not in {m.id for m in tier.models}:
             await callback.answer("That model isn't in your plan.", show_alert=True)
             return

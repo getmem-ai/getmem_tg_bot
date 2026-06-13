@@ -67,11 +67,12 @@ async def set_preferred_model(
     user.preferred_model = model
 
 
-async def grant_premium(
-    session: AsyncSession, user_id: int, until: dt.datetime
+async def set_tier(
+    session: AsyncSession, user_id: int, tier_key: str, until: dt.datetime | None
 ) -> None:
+    """Put a user on a tier (any key) until ``until`` (None = no expiry)."""
     user = await get_or_create_user(session, user_id)
-    user.tier = "premium"
+    user.tier = tier_key
     user.premium_until = until
 
 

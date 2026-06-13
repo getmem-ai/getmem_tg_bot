@@ -58,7 +58,13 @@ class TierConfig:
     key: str
     name: str
     daily_limit: int
+    price_stars: int = 0  # 0 = free (not purchasable)
+    period_days: int = 30  # billing period for a paid tier
     models: list[ModelSpec] = field(default_factory=list)
+
+    @property
+    def is_paid(self) -> bool:
+        return self.price_stars > 0 and self.key != "free"
 
 
 # Sensible direct-provider model defaults (admin can edit).
@@ -208,58 +214,65 @@ class ConfigStore:
 
     # -- tiers -----------------------------------------------------------
 
+    def _default_free(self) -> TierConfig:
+        return TierConfig(
+            key="free",
+            name="Free",
+            daily_limit=self._settings.free_daily_limit,
+            price_stars=0,
+            period_days=0,
+            models=[ModelSpec("openrouter", m) for m in self._settings.free_models],
+        )
+
     def _default_tiers(self) -> dict[str, TierConfig]:
         return {
-            "free": TierConfig(
-                key="free",
-                name="Free",
-                daily_limit=self._settings.free_daily_limit,
-                models=[
-                    ModelSpec("openrouter", m) for m in self._settings.free_models
-                ],
-            ),
+            "free": self._default_free(),
             "premium": TierConfig(
                 key="premium",
                 name="Premium",
                 daily_limit=self._settings.premium_daily_limit,
+                price_stars=self._settings.premium_price_stars,
+                period_days=self._settings.premium_period_days,
                 models=[
                     ModelSpec("openrouter", m) for m in self._settings.premium_models
                 ],
             ),
         }
 
+    def _parse_tier(self, key: str, s: dict[str, object]) -> TierConfig:
+        models = [
+            ModelSpec(str(m.get("provider", "openrouter")), str(m["id"]))
+            for m in s.get("models", [])  # type: ignore[union-attr]
+            if isinstance(m, dict) and m.get("id")
+        ]
+        return TierConfig(
+            key=key,
+            name=str(s.get("name") or key.replace("_", " ").title()),
+            daily_limit=int(s.get("daily_limit", 0)),  # type: ignore[arg-type]
+            price_stars=int(s.get("price_stars", 0)),  # type: ignore[arg-type]
+            period_days=int(s.get("period_days", self._settings.premium_period_days)),  # type: ignore[arg-type]
+            models=models,
+        )
+
     async def tiers(self) -> dict[str, TierConfig]:
-        defaults = self._default_tiers()
+        """All configured tiers (admin-defined; falls back to free+premium)."""
         stored = await self._get_json(repo.TIERS_KEY)
-        if not isinstance(stored, dict):
-            return defaults
+        if not isinstance(stored, dict) or not stored:
+            return self._default_tiers()
         out: dict[str, TierConfig] = {}
-        for key, base in defaults.items():
-            s = stored.get(key) if isinstance(stored.get(key), dict) else None
-            if not s:
-                out[key] = base
-                continue
-            models = [
-                ModelSpec(m.get("provider", "openrouter"), m["id"])
-                for m in s.get("models", [])
-                if isinstance(m, dict) and m.get("id")
-            ] or base.models
-            out[key] = TierConfig(
-                key=key,
-                name=base.name,
-                daily_limit=int(s.get("daily_limit", base.daily_limit)),
-                models=models,
-            )
+        for key, s in stored.items():
+            if isinstance(s, dict):
+                out[str(key)] = self._parse_tier(str(key), s)
+        # Free is always available, even if an admin omits it.
+        out.setdefault("free", self._default_free())
         return out
 
     async def set_tiers(self, tiers: list[dict[str, object]]) -> dict[str, TierConfig]:
-        # Merge with what's stored so a partial save (e.g. just "free" from the
-        # Mini App) never wipes the other tier.
-        existing = await self._get_json(repo.TIERS_KEY)
-        stored: dict[str, object] = dict(existing) if isinstance(existing, dict) else {}
+        """Replace the full tier set. A ``free`` tier is always kept."""
+        stored: dict[str, object] = {}
         for t in tiers:
-            key = str(t.get("key", ""))
-            if key not in {"free", "premium"}:
+            key = _slug(str(t.get("key", "")))
+            if not key:
                 continue
             models = [
                 {"provider": m.get("provider", "openrouter"), "id": m["id"]}
@@ -267,15 +280,41 @@ class ConfigStore:
                 if isinstance(m, dict) and m.get("id")
             ]
             stored[key] = {
+                "name": str(t.get("name") or key.replace("_", " ").title()),
                 "daily_limit": int(t.get("daily_limit", 0)),  # type: ignore[arg-type]
+                "price_stars": 0 if key == "free" else int(t.get("price_stars", 0)),  # type: ignore[arg-type]
+                "period_days": int(t.get("period_days", self._settings.premium_period_days)),  # type: ignore[arg-type]
                 "models": models,
+            }
+        if "free" not in stored:
+            f = self._default_free()
+            stored["free"] = {
+                "name": f.name,
+                "daily_limit": f.daily_limit,
+                "price_stars": 0,
+                "period_days": 0,
+                "models": [{"provider": m.provider, "id": m.id} for m in f.models],
             }
         await self._set_json(repo.TIERS_KEY, stored)
         return await self.tiers()
 
-    async def tier_for(self, is_premium: bool) -> TierConfig:
+    async def paid_tiers(self) -> list[TierConfig]:
+        """Purchasable tiers (price > 0), for the bot's /upgrade flow."""
+        return [t for t in (await self.tiers()).values() if t.is_paid]
+
+    async def tier_for_user(self, user: "object") -> TierConfig:
+        """The user's effective tier: their paid tier if active, else free."""
         tiers = await self.tiers()
-        return tiers["premium"] if is_premium else tiers["free"]
+        key = getattr(user, "tier", "free")
+        if getattr(user, "is_premium", False) and key in tiers and key != "free":
+            return tiers[key]
+        return tiers.get("free") or self._default_free()
+
+
+def _slug(value: str) -> str:
+    """Normalise a tier key: lowercase, alnum + underscores."""
+    out = "".join(c if c.isalnum() else "_" for c in value.strip().lower())
+    return "_".join(part for part in out.split("_") if part)
 
 
 def _dedupe(items: list[str]) -> list[str]:

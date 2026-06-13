@@ -7,12 +7,15 @@ from app.core.context_builder import ContextBuilder
 
 async def test_tiers_default_from_settings(settings: Settings) -> None:
     config = ConfigStore(None, settings)
-    free = await config.tier_for(is_premium=False)
-    premium = await config.tier_for(is_premium=True)
+    tiers = await config.tiers()
+    free, premium = tiers["free"], tiers["premium"]
     assert free.key == "free"
     assert free.daily_limit == settings.free_daily_limit
+    assert free.price_stars == 0
     assert [m.id for m in free.models] == settings.free_models
     assert premium.daily_limit == settings.premium_daily_limit
+    assert premium.price_stars == settings.premium_price_stars
+    assert premium.is_paid
     assert all(m.provider == "openrouter" for m in free.models)
 
 
@@ -45,9 +48,11 @@ def test_context_builder_persona_and_memory() -> None:
         history=[{"role": "user", "content": "earlier"}],
         user_text="how am I doing?",
     )
-    assert msgs[0]["role"] == "system"
-    assert "finance bot" in msgs[0]["content"]
-    assert "saves 20%" in msgs[0]["content"]
+    assert msgs[0] == {"role": "system", "content": "You are a finance bot."}
+    # Memory goes into a separate dynamic system message (not the persona).
+    assert msgs[1]["role"] == "system"
+    assert "saves 20%" in msgs[1]["content"]
+    assert {"role": "user", "content": "earlier"} in msgs
     assert msgs[-1] == {"role": "user", "content": "how am I doing?"}
 
 
@@ -57,3 +62,18 @@ def test_context_builder_no_memory() -> None:
     )
     assert msgs[0]["content"] == "P"
     assert len(msgs) == 2
+
+
+def test_context_builder_account_info_is_separate_message() -> None:
+    msgs = ContextBuilder.build(
+        system_prompt="Persona",
+        account_info="- Messages remaining today: 12",
+        memory_context="",
+        history=[],
+        user_text="how many do I have left?",
+    )
+    # Persona stays its own (cache-friendly) message; account info is separate.
+    assert msgs[0] == {"role": "system", "content": "Persona"}
+    assert msgs[1]["role"] == "system"
+    assert "remaining today: 12" in msgs[1]["content"]
+    assert msgs[-1]["content"] == "how many do I have left?"

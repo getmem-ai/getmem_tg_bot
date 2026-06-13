@@ -77,7 +77,7 @@ async def me(
     db_user = await repo.get_or_create_user(
         session, user.id, username=user.username, first_name=user.first_name
     )
-    tier = await config.tier_for(db_user.is_premium)
+    tier = await config.tier_for_user(db_user)
     used = await repo.used_today(session, user.id)
     messages = await repo.message_count(session, user.id)
     payments = await repo.payment_count(session, user.id)
@@ -113,7 +113,7 @@ async def set_my_model(
 ) -> SetModelOut:
     db_user = await repo.get_or_create_user(session, user.id)
     if body.model is not None:
-        tier = await config.tier_for(db_user.is_premium)
+        tier = await config.tier_for_user(db_user)
         if body.model not in {m.id for m in tier.models}:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -272,6 +272,8 @@ def _tier_out(t) -> TierOut:  # type: ignore[no-untyped-def]
         key=t.key,
         name=t.name,
         daily_limit=t.daily_limit,
+        price_stars=t.price_stars,
+        period_days=t.period_days,
         models=[_spec_out(m) for m in t.models],
     )
 
@@ -294,7 +296,10 @@ async def set_tiers(
     payload = [
         {
             "key": t.key,
+            "name": t.name,
             "daily_limit": t.daily_limit,
+            "price_stars": t.price_stars,
+            "period_days": t.period_days,
             "models": [{"provider": m.provider, "id": m.id} for m in t.models],
         }
         for t in body.tiers

@@ -133,6 +133,8 @@ export interface TierConfig {
   key: string;
   name: string;
   daily_limit: number;
+  price_stars: number; // 0 = free
+  period_days: number; // billing period for paid tiers
   models: ModelSpec[];
 }
 
@@ -142,6 +144,9 @@ export interface TiersResponse {
 
 export interface TierUpdate {
   key: string;
+  name: string;
   daily_limit: number;
+  price_stars: number;
+  period_days: number;
   models: Array<{ provider: Provider; id: string }>;
 }

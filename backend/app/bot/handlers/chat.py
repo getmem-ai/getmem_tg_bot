@@ -91,7 +91,7 @@ async def respond(
         is_premium = user.is_premium
         user_obj = user
 
-    limit = (await config.tier_for(is_premium)).daily_limit
+    limit = (await config.tier_for_user(user_obj)).daily_limit
 
     if used >= limit:
         tier = "premium" if is_premium else "free"

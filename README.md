@@ -16,6 +16,11 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
+<p align="center">
+  <b>▶️ Try the live demo:</b> <a href="https://t.me/getmem_recall_bot">@getmem_recall_bot</a><br>
+  <sub>Message it, send a voice note, open the dashboard — see exactly what you'll get.</sub>
+</p>
+
 ---
 
 A Telegram bot that actually **remembers you**. Every conversation is ingested

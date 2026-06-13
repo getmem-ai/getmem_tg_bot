@@ -39,13 +39,16 @@ def model_keyboard(
     return kb.as_markup()
 
 
-def upgrade_keyboard(price: int) -> InlineKeyboardMarkup:
+def upgrade_keyboard(tiers: list) -> InlineKeyboardMarkup:  # list[TierConfig]
+    """One purchase button per paid tier."""
     kb = InlineKeyboardBuilder()
-    kb.row(
-        InlineKeyboardButton(
-            text=f"⭐ Pay {price} Stars", callback_data=f"{CB_UPGRADE}:buy"
+    for tier in tiers:
+        kb.row(
+            InlineKeyboardButton(
+                text=f"⭐ {tier.name} — {tier.price_stars} Stars",
+                callback_data=f"{CB_UPGRADE}:{tier.key}",
+            )
         )
-    )
     return kb.as_markup()
 
 

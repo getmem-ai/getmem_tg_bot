@@ -103,6 +103,8 @@ class TierOut(BaseModel):
     key: str
     name: str
     daily_limit: int
+    price_stars: int
+    period_days: int
     models: list[ModelSpecOut]
 
 
@@ -112,7 +114,10 @@ class TiersOut(BaseModel):
 
 class TierIn(BaseModel):
     key: str
+    name: str
     daily_limit: int
+    price_stars: int = 0
+    period_days: int = 30
     models: list[TierModelIn]
 
 

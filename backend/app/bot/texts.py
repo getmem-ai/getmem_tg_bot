@@ -85,29 +85,35 @@ def limit_reached(tier: str, limit: int) -> str:
     )
 
 
-def upgrade_offer(price: int, days: int, limit: int) -> str:
+UPGRADE_NONE = (
+    "There are no paid plans configured yet. You're on the free plan — enjoy!"
+)
+
+
+def upgrade_offer(tiers: list) -> str:  # list[TierConfig]
+    lines = ["<b>⭐ Upgrade your plan</b>\n"]
+    for t in tiers:
+        lines.append(
+            f"<b>{t.name}</b> — {t.price_stars} Stars / {t.period_days} days\n"
+            f"• Up to <b>{t.daily_limit}</b> messages per day\n"
+            f"• {len(t.models)} models incl. premium\n"
+        )
+    lines.append("Pick a plan below to pay with Telegram Stars.")
+    return "\n".join(lines)
+
+
+def payment_title(name: str) -> str:
+    return f"{name} plan"
+
+
+def payment_description(name: str, days: int) -> str:
+    return f"{name} plan for {days} days: higher daily limits and more models."
+
+
+def payment_success(name: str, days: int) -> str:
     return (
-        "<b>⭐ Premium</b>\n\n"
-        f"For <b>{price} Telegram Stars</b> you get, for <b>{days} days</b>:\n"
-        f"• Up to <b>{limit}</b> messages per day\n"
-        "• Access to premium models (Claude, GPT-4o, Gemini Pro)\n"
-        "• Priority model selection\n\n"
-        "Tap the button below to pay with Telegram Stars."
-    )
-
-
-PAYMENT_TITLE = "Premium access"
-
-
-def payment_description(days: int) -> str:
-    return f"Premium plan for {days} days: premium models and higher daily limits."
-
-
-def payment_success(days: int) -> str:
-    return (
-        "🎉 Payment received — welcome to <b>Premium</b>!\n\n"
-        f"You're upgraded for {days} days. Premium models are now available — "
-        "set one with /model. Enjoy!"
+        f"🎉 Payment received — welcome to <b>{name}</b>!\n\n"
+        f"You're upgraded for {days} days. Set a model with /model. Enjoy!"
     )
 
 

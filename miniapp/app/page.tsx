@@ -25,7 +25,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { TabBar, type TabDef, type TabKey } from "@/components/TabBar";
 
 const USAGE_DAYS = 14;
-const ACTIVITY_LIMIT = 20;
+const ACTIVITY_LIMIT = 15;
 
 export default function App() {
   // `ready` flips once we've decided we're inside Telegram (or have dev data).

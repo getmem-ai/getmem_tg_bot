@@ -38,6 +38,39 @@ export function shortDay(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * Returns a day-group label for an ISO timestamp:
+ * "Today", "Yesterday", or a short date like "Jun 13".
+ */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+
+  const startOf = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayMs = 86_400_000;
+  const diffDays = Math.round((startOf(now) - startOf(d)) / dayMs);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+/**
+ * Shortens a fully-qualified model id into a compact badge label by stripping
+ * the provider prefix (e.g. "openai/") and a trailing ":free" suffix.
+ */
+export function shortModel(model: string): string {
+  const noPrefix = model.includes("/") ? model.split("/").pop()! : model;
+  return noPrefix.replace(/:free$/i, "");
+}
+
 /** Truncates text to maxLen graphemes-ish, appending an ellipsis. */
 export function truncate(text: string, maxLen = 80): string {
   const clean = text.replace(/\s+/g, " ").trim();

@@ -51,7 +51,8 @@ class User(Base):
 
     @property
     def is_premium(self) -> bool:
-        if self.tier != "premium":
+        """True when the user is on an active *paid* tier (anything but free)."""
+        if not self.tier or self.tier == "free":
             return False
         if self.premium_until is None:
             return True
