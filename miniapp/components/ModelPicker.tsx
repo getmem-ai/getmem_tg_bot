@@ -109,14 +109,18 @@ function ModelRow({
       <button
         onClick={onClick}
         disabled={busy}
-        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition ${
           active
-            ? "bg-tg-button/10 ring-1 ring-inset ring-tg-button/30"
+            ? "bg-brand/10 ring-1 ring-inset ring-brand/30"
             : "active:bg-black/[0.04] dark:active:bg-white/[0.06]"
         }`}
       >
         {icon && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-tg-hint/12 text-tg-hint">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${
+              active ? "bg-brand/15 text-brand" : "bg-tg-hint/12 text-tg-hint"
+            }`}
+          >
             {icon}
           </span>
         )}
@@ -128,7 +132,7 @@ function ModelRow({
         </span>
         <span
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition ${
-            active ? "bg-tg-button text-tg-button-text" : "text-transparent"
+            active ? "bg-brand text-brand-fg" : "text-transparent"
           }`}
         >
           <Check className="h-3.5 w-3.5" aria-hidden />

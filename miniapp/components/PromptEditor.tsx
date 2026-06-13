@@ -90,7 +90,7 @@ export function PromptEditor() {
             onChange={(e) => setValue(e.target.value)}
             rows={7}
             spellCheck={false}
-            className="w-full resize-y rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 p-3 text-sm text-tg-text outline-none transition focus:border-tg-button"
+            className="w-full resize-y rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 p-3.5 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
             placeholder="You are a helpful assistant with long-term memory…"
           />
           <div className="mt-3 flex items-center justify-between gap-3">

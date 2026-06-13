@@ -80,15 +80,15 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       <SectionTitle icon={SlidersHorizontal}>Runtime</SectionTitle>
 
       <div
-        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+        className={`flex items-center gap-3 rounded-2xl border px-3.5 py-3 ${
           paused
             ? "border-red-500/30 bg-red-500/5"
-            : "border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40"
+            : "border-black/[0.04] dark:border-white/[0.06] bg-tg-secondary/50"
         }`}
       >
         <span
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-            paused ? "bg-red-500/15 text-red-500" : "bg-tg-button/10 text-tg-button"
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+            paused ? "bg-red-500/15 text-red-500" : "bg-brand/10 text-brand"
           }`}
         >
           <PauseCircle className="h-4 w-4" aria-hidden />
@@ -107,9 +107,9 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         </p>
       )}
 
-      <div className="mt-2 flex items-center gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-tg-button/10 text-tg-button">
-          <Mic className="h-4 w-4" aria-hidden />
+      <div className="mt-2 flex items-center gap-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] bg-tg-secondary/50 px-3.5 py-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+          <Mic className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Voice transcription</p>
@@ -120,9 +120,9 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         <Toggle checked={voice} onChange={setVoice} label="Voice transcription" />
       </div>
 
-      <div className="mt-2 flex items-center gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-tg-button/10 text-tg-button">
-          <Drama className="h-4 w-4" aria-hidden />
+      <div className="mt-2 flex items-center gap-3 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] bg-tg-secondary/50 px-3.5 py-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+          <Drama className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Allow users to set a personal role</p>
@@ -137,7 +137,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         />
       </div>
 
-      <div className="mt-2 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
+      <div className="mt-2 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] bg-tg-secondary/50 px-3.5 py-3">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Max tokens per reply</p>
@@ -154,7 +154,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
             onChange={(e) => setMaxTokens(e.target.value)}
             aria-label="Max tokens per reply"
             placeholder="0"
-            className="w-24 rounded-lg border border-black/[0.08] dark:border-white/[0.12] bg-tg-bg px-2.5 py-1.5 text-right text-sm text-tg-text outline-none focus:border-tg-button"
+            className="w-24 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-bg px-2.5 py-2 text-right text-sm text-tg-text outline-none transition focus:border-brand focus:shadow-ring"
           />
         </div>
       </div>

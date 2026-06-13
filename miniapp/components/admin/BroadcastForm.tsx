@@ -73,7 +73,7 @@ export function BroadcastForm() {
         }}
         placeholder="Write a message to send to your users…"
         rows={5}
-        className="w-full resize-y rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-tg-bg px-3 py-2.5 text-sm text-tg-text outline-none focus:border-tg-button"
+        className="w-full resize-y rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-3 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
       />
 
       <div className="mt-3">
@@ -86,7 +86,7 @@ export function BroadcastForm() {
             setTier(e.target.value);
             reset();
           }}
-          className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.12] bg-tg-bg px-3 py-2.5 text-sm text-tg-text outline-none focus:border-tg-button"
+          className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-3 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
         >
           <option value="">All users</option>
           {tiers.map((t) => (

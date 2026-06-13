@@ -33,8 +33,8 @@ function ChartTooltip({
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-lg border border-black/10 bg-tg-bg px-2.5 py-1.5 text-xs shadow-sm">
-      <div className="font-medium text-tg-text">{shortDay(point.day)}</div>
+    <div className="rounded-xl border border-black/[0.06] bg-tg-bg px-3 py-2 text-xs shadow-card dark:border-white/[0.08]">
+      <div className="font-semibold text-tg-text">{shortDay(point.day)}</div>
       <div className="text-tg-hint">{point.count} messages</div>
     </div>
   );
@@ -66,8 +66,8 @@ export function UsageChart({ series }: UsageChartProps) {
             >
               <defs>
                 <linearGradient id="usageFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--tg-button)" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="var(--tg-button)" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.45} />
+                  <stop offset="100%" stopColor="var(--brand)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -98,9 +98,16 @@ export function UsageChart({ series }: UsageChartProps) {
               <Area
                 type="monotone"
                 dataKey="count"
-                stroke="var(--tg-button)"
-                strokeWidth={2}
+                stroke="var(--brand)"
+                strokeWidth={2.5}
                 fill="url(#usageFill)"
+                dot={false}
+                activeDot={{
+                  r: 4,
+                  fill: "var(--brand)",
+                  stroke: "var(--tg-bg)",
+                  strokeWidth: 2,
+                }}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -78,7 +78,7 @@ export function RoleEditor({ role, enabled, onSaved }: RoleEditorProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-tg-text">
-            <Drama className="h-4 w-4 text-tg-button" aria-hidden />
+            <Drama className="h-4 w-4 text-brand" aria-hidden />
             Personal role
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-tg-hint">
@@ -104,7 +104,7 @@ export function RoleEditor({ role, enabled, onSaved }: RoleEditorProps) {
             onChange={(e) => setValue(e.target.value.slice(0, MAX_LEN))}
             rows={4}
             maxLength={MAX_LEN}
-            className="w-full resize-y rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 p-3 text-sm text-tg-text outline-none transition focus:border-tg-button"
+            className="w-full resize-y rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 p-3.5 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
             placeholder="e.g. You are my patient English teacher — correct my mistakes and explain briefly."
           />
 

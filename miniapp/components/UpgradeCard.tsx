@@ -58,30 +58,33 @@ export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 px-1">
-        <Crown className="h-4 w-4 text-amber-500" aria-hidden />
-        <h3 className="text-sm font-semibold text-tg-text">Upgrade your plan</h3>
-      </div>
-
       {tiers.map((tier) => (
         <div
           key={tier.key}
-          className="relative overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/10 to-amber-500/[0.04] p-4"
+          className="relative overflow-hidden rounded-card-lg bg-brand p-5 text-white shadow-pop"
         >
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-semibold text-amber-500">
-            <Sparkles className="h-3 w-3" aria-hidden /> {tier.name}
-          </span>
-          <ul className="mt-3 space-y-1.5 text-sm text-tg-text">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-white/15 blur-2xl"
+          />
+          <div className="relative flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+              <Crown className="h-3 w-3" aria-hidden /> {tier.name}
+            </span>
+            <Sparkles className="h-5 w-5 text-white/70" aria-hidden />
+          </div>
+
+          <ul className="relative mt-4 space-y-2 text-sm text-white/90">
             <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
-              Up to <b>{formatNumber(tier.daily_limit)}</b> messages/day
+              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
+              Up to <b className="text-white">{formatNumber(tier.daily_limit)}</b> messages/day
             </li>
             <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
               {tier.model_count} models incl. premium
             </li>
             <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
               {tier.period_days} days
             </li>
           </ul>
@@ -89,7 +92,7 @@ export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
           <button
             onClick={() => buy(tier)}
             disabled={pending !== null}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition active:scale-[0.99] disabled:opacity-60"
+            className="relative mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-brand-700 shadow-soft transition active:scale-[0.99] disabled:opacity-60"
           >
             {pending === tier.key ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />

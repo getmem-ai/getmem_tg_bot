@@ -79,7 +79,7 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
   return (
     <Card>
       <div className="mb-3 flex items-center gap-2.5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-tg-button/10 text-tg-button">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
           <Server className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -88,7 +88,7 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
               {provider.name}
             </p>
             {provider.is_default && (
-              <span className="rounded-full bg-tg-button/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-tg-button">
+              <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
                 Default
               </span>
             )}
@@ -132,7 +132,7 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
             autoComplete="off"
             spellCheck={false}
             placeholder={hasKey ? "Replace key (leave blank to keep)" : "Paste API key"}
-            className="w-full rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 px-3 py-2 text-sm text-tg-text outline-none transition focus:border-tg-button"
+            className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-2.5 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
           />
         </>
       )}
@@ -146,7 +146,7 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
         onChange={(e) => setModelsText(e.target.value)}
         rows={3}
         spellCheck={false}
-        className="w-full resize-y rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 p-3 font-mono text-xs text-tg-text outline-none transition focus:border-tg-button"
+        className="w-full resize-y rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 p-3.5 font-mono text-xs text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
         placeholder="gpt-4o&#10;gpt-4o-mini"
       />
 

@@ -7,13 +7,12 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  MessageSquare,
   User as UserIcon,
 } from "lucide-react";
+import Image from "next/image";
 import type { ActivityItem } from "@/lib/types";
 import { dayLabel, relativeTime, shortModel } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
-import { EmptyState } from "./ui";
 
 interface ActivityListProps {
   items: ActivityItem[];
@@ -46,7 +45,7 @@ function groupByDay(items: ActivityItem[]): DayGroup[] {
 function DayHeader({ label }: { label: string }) {
   return (
     <div className="sticky top-2 z-10 -mx-1 mb-2 flex justify-center">
-      <span className="rounded-full border border-black/[0.06] bg-tg-bg/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-tg-hint shadow-sm backdrop-blur dark:border-white/[0.08]">
+      <span className="rounded-full border border-black/[0.04] bg-tg-bg/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-tg-hint shadow-soft backdrop-blur dark:border-white/[0.06]">
         {label}
       </span>
     </div>
@@ -114,7 +113,7 @@ function MessageBubble({ item }: { item: ActivityItem }) {
         <span
           className={`flex h-5 w-5 items-center justify-center rounded-md ${
             isAssistant
-              ? "bg-tg-button/12 text-tg-button"
+              ? "bg-brand/12 text-brand"
               : "bg-tg-hint/15 text-tg-hint"
           }`}
         >
@@ -127,10 +126,10 @@ function MessageBubble({ item }: { item: ActivityItem }) {
 
       {/* Bubble */}
       <div
-        className={`max-w-[88%] rounded-2xl border px-3.5 py-2.5 shadow-sm shadow-black/[0.02] ${
+        className={`max-w-[88%] rounded-card border px-4 py-3 shadow-card ${
           isAssistant
-            ? "rounded-tl-md border-black/[0.06] bg-tg-secondary/70 dark:border-white/[0.08]"
-            : "rounded-tr-md border-tg-button/20 bg-tg-button/10"
+            ? "rounded-tl-md border-black/[0.04] bg-tg-bg dark:border-white/[0.06]"
+            : "rounded-tr-md border-brand/20 bg-brand/10"
         }`}
       >
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-tg-text [overflow-wrap:anywhere]">
@@ -144,7 +143,7 @@ function MessageBubble({ item }: { item: ActivityItem }) {
               haptic("light");
               setExpanded((e) => !e);
             }}
-            className="mt-1.5 inline-flex items-center gap-0.5 text-[11px] font-medium text-tg-button transition active:opacity-70"
+            className="mt-1.5 inline-flex items-center gap-0.5 text-[11px] font-semibold text-brand transition active:opacity-70"
           >
             {expanded ? (
               <>
@@ -181,11 +180,20 @@ function MessageBubble({ item }: { item: ActivityItem }) {
 export function ActivityList({ items }: ActivityListProps) {
   if (items.length === 0) {
     return (
-      <EmptyState
-        icon={MessageSquare}
-        title="No messages yet"
-        hint="Say hi to the bot and your conversation will show up here."
-      />
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <Image
+          src="/brand/empty.png"
+          alt=""
+          width={160}
+          height={160}
+          className="mb-4 h-36 w-36 object-contain opacity-90"
+          priority
+        />
+        <p className="text-sm font-semibold text-tg-text">No messages yet</p>
+        <p className="mt-1.5 max-w-[16rem] text-xs leading-relaxed text-tg-hint">
+          Say hi to the bot and your conversation will show up here.
+        </p>
+      </div>
     );
   }
 

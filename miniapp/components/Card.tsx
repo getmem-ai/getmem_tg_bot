@@ -9,7 +9,7 @@ interface CardProps {
 export function Card({ children, className = "" }: CardProps) {
   return (
     <section
-      className={`rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-secondary/50 p-4 shadow-sm shadow-black/[0.02] ${className}`}
+      className={`rounded-card border border-black/[0.04] dark:border-white/[0.06] bg-tg-bg p-5 shadow-card ${className}`}
     >
       {children}
     </section>
@@ -45,9 +45,9 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle, icon: Icon, right }: PageHeaderProps) {
   return (
     <header className="mb-1 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         {Icon && (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tg-button/10 text-tg-button">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand">
             <Icon className="h-5 w-5" aria-hidden />
           </span>
         )}

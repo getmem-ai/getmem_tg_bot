@@ -142,7 +142,7 @@ export function UsersManager() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by id, @username or name"
-          className="w-full rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 py-2.5 pl-9 pr-3 text-sm text-tg-text outline-none transition focus:border-tg-button placeholder:text-tg-hint"
+          className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 py-2.5 pl-9 pr-3 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring placeholder:text-tg-hint"
         />
       </div>
 
@@ -221,7 +221,7 @@ function UserCard({
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center gap-3 p-3.5 text-left transition active:bg-black/[0.03] dark:active:bg-white/[0.05]"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tg-hint/12 text-sm font-semibold text-tg-text">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-sm font-semibold text-brand">
           {initial}
         </span>
         <div className="min-w-0 flex-1">
@@ -242,11 +242,11 @@ function UserCard({
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <span className="rounded-md bg-tg-button/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-tg-button">
+          <span className="rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
             {tierName}
           </span>
           {user.is_admin && (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-tg-button/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-tg-button">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-brand/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
               <ShieldCheck className="h-3 w-3" aria-hidden /> Admin
             </span>
           )}
@@ -266,7 +266,7 @@ function UserCard({
 }
 
 const numberFieldClass =
-  "w-full rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 px-3 py-2 text-sm text-tg-text outline-none transition focus:border-tg-button disabled:opacity-50";
+  "w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-2.5 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring disabled:opacity-50";
 
 function UserActions({
   user,
@@ -358,7 +358,7 @@ function UserActions({
           )}
         </div>
         {user.env_admin ? (
-          <span className="inline-flex items-center gap-1 rounded-xl bg-tg-button/12 px-3 py-1.5 text-xs font-semibold text-tg-button">
+          <span className="inline-flex items-center gap-1 rounded-2xl bg-brand/12 px-3 py-2 text-xs font-semibold text-brand">
             <ShieldCheck className="h-4 w-4" aria-hidden /> Admin
           </span>
         ) : user.is_admin ? (
@@ -376,7 +376,7 @@ function UserActions({
             type="button"
             onClick={() => apply({ is_admin: true }, "Admin granted")}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-tg-button px-3 py-1.5 text-xs font-semibold text-tg-button-text transition active:opacity-80 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl bg-brand px-3.5 py-2 text-xs font-semibold text-brand-fg shadow-pop transition active:scale-[0.99] disabled:opacity-50"
           >
             <ShieldCheck className="h-4 w-4" aria-hidden />
             Make admin

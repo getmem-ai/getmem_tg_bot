@@ -34,16 +34,16 @@ export function Button({
   type = "button",
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100";
+    "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition active:scale-[0.99] disabled:opacity-50 disabled:active:scale-100";
   const sizes = {
-    sm: "px-3 py-1.5 text-xs",
+    sm: "px-3.5 py-2 text-xs",
     md: "px-4 py-2.5 text-sm",
   };
   const variants = {
-    primary: "bg-tg-button text-tg-button-text shadow-sm",
+    primary: "bg-brand text-brand-fg shadow-pop",
     secondary:
-      "bg-tg-bg/60 text-tg-text border border-black/[0.08] dark:border-white/[0.12]",
-    ghost: "text-tg-button hover:bg-tg-button/10",
+      "bg-tg-secondary text-tg-text border border-black/[0.04] dark:border-white/[0.06]",
+    ghost: "text-brand hover:bg-brand/10",
   };
   return (
     <button
@@ -108,13 +108,13 @@ export function SegmentedControl<T extends string>({
           hapticSelection();
           onChange(opt.value);
         }}
-        className={`flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition ${
+        className={`flex items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition ${
           scrollable
-            ? "shrink-0 snap-start whitespace-nowrap px-3 py-2"
-            : "flex-1 px-2 py-1.5"
+            ? "shrink-0 snap-start whitespace-nowrap px-3.5 py-2"
+            : "flex-1 px-2 py-2"
         } ${
           active
-            ? "bg-tg-button text-tg-button-text shadow-sm"
+            ? "bg-brand text-brand-fg shadow-soft"
             : "text-tg-hint active:bg-black/[0.04] dark:active:bg-white/[0.06]"
         }`}
       >
@@ -131,13 +131,13 @@ export function SegmentedControl<T extends string>({
       <div className={`relative ${className}`}>
         <div
           role="tablist"
-          className="no-scrollbar flex snap-x gap-1 overflow-x-auto rounded-xl border border-black/[0.06] bg-tg-bg/50 p-1 dark:border-white/[0.08] [-webkit-overflow-scrolling:touch]"
+          className="no-scrollbar flex snap-x gap-1 overflow-x-auto rounded-full bg-tg-secondary p-1 [-webkit-overflow-scrolling:touch]"
         >
           {buttons}
         </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-y-1 right-1 w-8 rounded-r-xl bg-gradient-to-l from-tg-bg/80 to-transparent"
+          className="pointer-events-none absolute inset-y-1 right-1 w-8 rounded-r-full bg-gradient-to-l from-tg-bg/80 to-transparent"
         />
       </div>
     );
@@ -145,7 +145,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div
-      className={`flex gap-1 rounded-xl bg-tg-bg/50 p-1 border border-black/[0.06] dark:border-white/[0.08] ${className}`}
+      className={`flex gap-1 rounded-full bg-tg-secondary p-1 ${className}`}
       role="tablist"
     >
       {buttons}
@@ -178,7 +178,7 @@ export function Toggle({ checked, onChange, disabled, label }: ToggleProps) {
         onChange(!checked);
       }}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50 ${
-        checked ? "bg-tg-button" : "bg-tg-hint/30"
+        checked ? "bg-brand shadow-soft" : "bg-tg-hint/30"
       }`}
     >
       <span
@@ -206,7 +206,7 @@ export function SaveMessage({
   if (!message) return null;
   const tone =
     status === "saved"
-      ? "text-green-500"
+      ? "text-emerald-500"
       : status === "error"
         ? "text-red-500"
         : "text-tg-hint";
@@ -232,14 +232,14 @@ export function EmptyState({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
+    <div className="flex flex-col items-center justify-center py-10 text-center">
       {Icon && (
-        <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-tg-hint/10 text-tg-hint">
+        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
           <Icon className="h-5 w-5" aria-hidden />
         </span>
       )}
-      <p className="text-sm font-medium text-tg-text">{title}</p>
-      {hint && <p className="mt-1 max-w-[16rem] text-xs text-tg-hint">{hint}</p>}
+      <p className="text-sm font-semibold text-tg-text">{title}</p>
+      {hint && <p className="mt-1.5 max-w-[16rem] text-xs leading-relaxed text-tg-hint">{hint}</p>}
     </div>
   );
 }

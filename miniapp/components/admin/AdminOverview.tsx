@@ -48,14 +48,14 @@ function Stat({
   icon: IconType;
 }) {
   return (
-    <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-secondary/50 p-3.5 shadow-sm shadow-black/[0.02]">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-tg-button/10 text-tg-button">
-        <Icon className="h-4 w-4" aria-hidden />
+    <div className="rounded-card border border-black/[0.04] dark:border-white/[0.06] bg-tg-bg p-4 shadow-card">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+        <Icon className="h-5 w-5" aria-hidden />
       </span>
-      <div className="mt-2 text-2xl font-bold leading-none">
+      <div className="mt-3 text-2xl font-bold leading-none tabular-nums">
         {formatNumber(value)}
       </div>
-      <div className="mt-1 text-xs text-tg-hint">{label}</div>
+      <div className="mt-1.5 text-xs text-tg-hint">{label}</div>
     </div>
   );
 }
@@ -65,7 +65,7 @@ function RecentUserRow({ user }: { user: RecentUser }) {
   const initial = (user.first_name || "?").charAt(0).toUpperCase();
   return (
     <li className="flex items-center gap-3 py-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-tg-hint/12 text-xs font-semibold text-tg-text">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-sm font-semibold text-brand">
         {initial}
       </span>
       <div className="min-w-0 flex-1">
@@ -103,8 +103,8 @@ function DayTooltip({
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-lg border border-black/10 bg-tg-bg px-2.5 py-1.5 text-xs shadow-sm">
-      <div className="font-medium text-tg-text">{shortDay(point.day)}</div>
+    <div className="rounded-xl border border-black/[0.06] bg-tg-bg px-3 py-2 text-xs shadow-card dark:border-white/[0.08]">
+      <div className="font-semibold text-tg-text">{shortDay(point.day)}</div>
       <div className="text-tg-hint">
         {point.count} {unit}
       </div>
@@ -133,8 +133,8 @@ function MessagesChart({ series }: { series: DayCount[] }) {
         <AreaChart data={data} margin={CHART_MARGIN}>
           <defs>
             <linearGradient id="analyticsMsgFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--tg-button)" stopOpacity={0.5} />
-              <stop offset="100%" stopColor="var(--tg-button)" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="var(--brand)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid
@@ -165,9 +165,16 @@ function MessagesChart({ series }: { series: DayCount[] }) {
           <Area
             type="monotone"
             dataKey="count"
-            stroke="var(--tg-button)"
-            strokeWidth={2}
+            stroke="var(--brand)"
+            strokeWidth={2.5}
             fill="url(#analyticsMsgFill)"
+            dot={false}
+            activeDot={{
+              r: 4,
+              fill: "var(--brand)",
+              stroke: "var(--tg-bg)",
+              strokeWidth: 2,
+            }}
           />
         </AreaChart>
       </ResponsiveContainer>
@@ -216,7 +223,7 @@ function NewUsersChart({ series }: { series: DayCount[] }) {
             content={<DayTooltip unit="new users" />}
             cursor={{ fill: "var(--tg-hint)", fillOpacity: 0.08 }}
           />
-          <Bar dataKey="count" fill="var(--tg-button)" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="count" fill="var(--brand)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -238,9 +245,9 @@ function ModelMix({ models }: { models: AnalyticsResponse["model_mix"] }) {
               {formatNumber(m.count)}
             </span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-tg-hint/15">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-tg-hint/15">
             <div
-              className="h-full rounded-full bg-tg-button"
+              className="h-full rounded-full bg-brand"
               style={{ width: `${(m.count / max) * 100}%` }}
             />
           </div>
@@ -262,14 +269,14 @@ function AnalyticsBlock() {
 
   return (
     <>
-      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-secondary/50 p-3.5 shadow-sm shadow-black/[0.02]">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500">
-          <Sparkles className="h-4 w-4" aria-hidden />
+      <div className="rounded-card border border-black/[0.04] dark:border-white/[0.06] bg-tg-bg p-4 shadow-card">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-500">
+          <Sparkles className="h-5 w-5" aria-hidden />
         </span>
-        <div className="mt-2 text-2xl font-bold leading-none">
+        <div className="mt-3 text-2xl font-bold leading-none tabular-nums">
           ⭐ {formatNumber(data.revenue_stars)} Stars
         </div>
-        <div className="mt-1 text-xs text-tg-hint">Earned (last 14 days)</div>
+        <div className="mt-1.5 text-xs text-tg-hint">Earned (last 14 days)</div>
       </div>
 
       <Card>

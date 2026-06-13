@@ -23,7 +23,7 @@ interface TabBarProps {
 export function TabBar({ tabs, active, onChange }: TabBarProps) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.07] dark:border-white/[0.09] bg-tg-bg/85 backdrop-blur-xl pb-safe"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.05] dark:border-white/[0.07] bg-tg-bg/95 backdrop-blur-xl pb-safe"
       aria-label="Primary"
     >
       <div className="mx-auto flex w-full max-w-md items-stretch">
@@ -38,11 +38,17 @@ export function TabBar({ tabs, active, onChange }: TabBarProps) {
                 onChange(tab.key);
               }}
               aria-current={isActive ? "page" : undefined}
-              className="group flex flex-1 flex-col items-center justify-center gap-1 py-2 transition"
+              className="group relative flex flex-1 flex-col items-center justify-center gap-1 py-2.5 transition"
             >
+              {isActive && (
+                <span
+                  aria-hidden
+                  className="absolute top-0 h-0.5 w-8 rounded-full bg-brand"
+                />
+              )}
               <span
                 className={`flex h-7 w-12 items-center justify-center rounded-full transition ${
-                  isActive ? "bg-tg-button/12 text-tg-button" : "text-tg-hint"
+                  isActive ? "bg-brand/12 text-brand" : "text-tg-hint"
                 }`}
               >
                 <Icon
@@ -53,8 +59,8 @@ export function TabBar({ tabs, active, onChange }: TabBarProps) {
                 />
               </span>
               <span
-                className={`text-[10px] font-medium leading-none transition ${
-                  isActive ? "text-tg-button" : "text-tg-hint"
+                className={`text-[10px] font-semibold leading-none transition ${
+                  isActive ? "text-brand" : "text-tg-hint"
                 }`}
               >
                 {tab.label}

@@ -19,7 +19,7 @@ export function Skeleton({ className = "", style }: SkeletonProps) {
 /** A reusable card-shaped skeleton with a few placeholder lines. */
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="rounded-card border border-black/5 dark:border-white/10 p-4 bg-tg-secondary/40">
+    <div className="rounded-card border border-black/[0.04] dark:border-white/[0.06] p-5 bg-tg-bg shadow-card">
       <Skeleton className="h-4 w-1/3 mb-3" />
       <div className="space-y-2">
         {Array.from({ length: lines }).map((_, i) => (

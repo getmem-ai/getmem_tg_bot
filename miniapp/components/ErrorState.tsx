@@ -15,13 +15,13 @@ export function ErrorState({ error, onRetry }: ErrorStateProps) {
         : "Something went wrong loading this.";
 
   return (
-    <div className="rounded-card border border-red-500/20 bg-red-500/5 p-4 text-sm">
+    <div className="rounded-card border border-red-500/20 bg-red-500/5 p-5 text-sm shadow-card">
       <p className="text-tg-text">{message}</p>
       {onRetry && (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-3 rounded-lg bg-tg-button px-3 py-1.5 text-xs font-medium text-tg-button-text active:opacity-80"
+          className="mt-3 rounded-2xl bg-brand px-4 py-2 text-xs font-semibold text-brand-fg shadow-pop transition active:scale-[0.99]"
         >
           Try again
         </button>

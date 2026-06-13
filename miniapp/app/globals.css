@@ -11,12 +11,30 @@
   --tg-button: #2481cc;
   --tg-button-text: #ffffff;
   --tg-secondary-bg: #f1f1f1;
+
+  /* Constant brand accent (violet) — mirrors the tailwind brand ramp. */
+  --brand: #7c5cfc;
+  --brand-600: #6b46f0;
+  --brand-100: #e9e5ff;
+  --brand-50: #f3f1ff;
 }
 
 html,
 body {
   background-color: var(--tg-bg);
   color: var(--tg-text);
+}
+
+/* Soft branded glow behind the app — subtle and theme-safe (light & dark). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 460px at 50% -10%, rgba(124, 92, 252, 0.12), transparent 70%),
+    radial-gradient(680px 360px at 100% 2%, rgba(124, 92, 252, 0.06), transparent 65%);
 }
 
 body {

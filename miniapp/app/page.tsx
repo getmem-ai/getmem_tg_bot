@@ -112,7 +112,7 @@ function HomeTab({
   const canUpgrade = (me.data?.upgrade_tiers?.length ?? 0) > 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {me.loading || !me.data ? (
         <>
           <CardSkeleton lines={2} />
@@ -139,8 +139,8 @@ function HomeTab({
 
       {me.loading || !me.data ? (
         <div className="flex gap-3">
-          <Skeleton className="h-[104px] flex-1 rounded-2xl" />
-          <Skeleton className="h-[104px] flex-1 rounded-2xl" />
+          <Skeleton className="h-[118px] flex-1 rounded-card" />
+          <Skeleton className="h-[118px] flex-1 rounded-card" />
         </div>
       ) : (
         <TotalsCards totals={me.data.totals} />

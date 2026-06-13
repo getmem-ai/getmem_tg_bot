@@ -269,7 +269,7 @@ function TiersForm({
 }
 
 const numberFieldClass =
-  "w-full rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 px-3 py-2 text-sm text-tg-text outline-none transition focus:border-tg-button disabled:opacity-50";
+  "w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-2.5 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring disabled:opacity-50";
 
 function TierCard({
   draft,
@@ -291,7 +291,7 @@ function TierCard({
   return (
     <Card>
       <div className="mb-3 flex items-center gap-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-tg-button/10 text-tg-button">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand/10 text-brand">
           <Icon className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
@@ -398,9 +398,9 @@ function TierCard({
                 key={m.id}
                 type="button"
                 onClick={() => onToggleModel(m.id)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                   on
-                    ? "border-tg-button/40 bg-tg-button/12 text-tg-button"
+                    ? "border-brand/40 bg-brand/12 text-brand"
                     : "border-black/[0.08] dark:border-white/[0.12] text-tg-hint active:bg-black/[0.04] dark:active:bg-white/[0.06]"
                 }`}
                 title={m.id}
