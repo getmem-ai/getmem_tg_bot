@@ -8,6 +8,14 @@ import type {
   HealthResponse,
   MeResponse,
   PromptResponse,
+  ProvidersResponse,
+  ProviderConfig,
+  ProviderUpdate,
+  RuntimeResponse,
+  RuntimeUpdate,
+  SetModelResponse,
+  TiersResponse,
+  TierUpdate,
   UsageSeriesResponse,
 } from "./types";
 
@@ -67,19 +75,44 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+function putJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 export const api = {
+  // ---- User ----
   me: () => request<MeResponse>("/me"),
+  setModel: (model: string | null) =>
+    putJson<SetModelResponse>("/me/model", { model }),
   activity: (limit = 20) =>
     request<ActivityResponse>(`/me/activity?limit=${encodeURIComponent(limit)}`),
   usage: (days = 14) =>
     request<UsageSeriesResponse>(`/me/usage?days=${encodeURIComponent(days)}`),
+
+  // ---- Admin: stats & prompt ----
   adminStats: () => request<AdminStatsResponse>("/admin/stats"),
   getPrompt: () => request<PromptResponse>("/admin/prompt"),
   setPrompt: (system_prompt: string) =>
-    request<PromptResponse>("/admin/prompt", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ system_prompt }),
-    }),
+    putJson<PromptResponse>("/admin/prompt", { system_prompt }),
+
+  // ---- Admin: runtime (voice + disabled models) ----
+  getRuntime: () => request<RuntimeResponse>("/admin/runtime"),
+  setRuntime: (update: RuntimeUpdate) =>
+    putJson<RuntimeResponse>("/admin/runtime", update),
+
+  // ---- Admin: providers ----
+  getProviders: () => request<ProvidersResponse>("/admin/providers"),
+  setProvider: (update: ProviderUpdate) =>
+    putJson<ProviderConfig>("/admin/providers", update),
+
+  // ---- Admin: tiers ----
+  getTiers: () => request<TiersResponse>("/admin/tiers"),
+  setTiers: (tiers: TierUpdate[]) =>
+    putJson<TiersResponse>("/admin/tiers", { tiers }),
+
   health: () => request<HealthResponse>("/health"),
 };

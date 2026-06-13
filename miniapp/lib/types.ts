@@ -2,6 +2,13 @@
 
 export type Tier = "free" | "premium" | string;
 export type Role = "user" | "assistant";
+export type Provider = "openrouter" | "openai" | "anthropic";
+
+export interface ModelSpec {
+  provider: Provider;
+  id: string;
+  label: string;
+}
 
 export interface User {
   id: number;
@@ -25,11 +32,23 @@ export interface Totals {
   payments: number;
 }
 
+export interface TierInfo {
+  key: string;
+  name: string;
+  daily_limit: number;
+}
+
 export interface MeResponse {
   user: User;
   usage: Usage;
   totals: Totals;
   is_admin: boolean;
+  tier: TierInfo;
+  available_models: ModelSpec[];
+}
+
+export interface SetModelResponse {
+  preferred_model: string | null;
 }
 
 export interface ActivityItem {
@@ -75,4 +94,54 @@ export interface HealthResponse {
 export interface PromptResponse {
   system_prompt: string;
   is_default: boolean;
+}
+
+export interface RuntimeResponse {
+  voice_enabled: boolean;
+  disabled_models: string[];
+  all_models: ModelSpec[];
+}
+
+export interface RuntimeUpdate {
+  voice_enabled?: boolean;
+  disabled_models?: string[];
+}
+
+export interface ProviderConfig {
+  name: string;
+  kind: Provider;
+  is_default: boolean;
+  enabled: boolean;
+  has_key: boolean;
+  key_masked: string | null;
+  models: string[];
+  note?: string | null;
+}
+
+export interface ProvidersResponse {
+  providers: ProviderConfig[];
+}
+
+export interface ProviderUpdate {
+  name: string;
+  enabled?: boolean;
+  api_key?: string;
+  models?: string[];
+}
+
+export interface TierConfig {
+  key: string;
+  name: string;
+  daily_limit: number;
+  models: ModelSpec[];
+}
+
+export interface TiersResponse {
+  tiers: TierConfig[];
+}
+
+export interface TierUpdate {
+  key: string;
+  daily_limit: number;
+  models: Array<{ provider: Provider; id: string }>;
 }

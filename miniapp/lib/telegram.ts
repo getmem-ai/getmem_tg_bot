@@ -22,6 +22,14 @@ export interface TelegramWebApp {
   offEvent: (event: string, handler: () => void) => void;
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;
+  openTelegramLink?: (url: string) => void;
+  openLink?: (url: string) => void;
+  close?: () => void;
+  HapticFeedback?: {
+    impactOccurred?: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
+    selectionChanged?: () => void;
+    notificationOccurred?: (type: "error" | "success" | "warning") => void;
+  };
 }
 
 declare global {
@@ -56,6 +64,47 @@ export function getInitData(): string {
 /** True when we have usable initData (either from Telegram or the dev fallback). */
 export function hasInitData(): boolean {
   return getInitData().length > 0;
+}
+
+/** Fires a light haptic tap if the Telegram bridge supports it. Never throws. */
+export function haptic(
+  style: "light" | "medium" | "heavy" | "rigid" | "soft" = "light",
+): void {
+  try {
+    getWebApp()?.HapticFeedback?.impactOccurred?.(style);
+  } catch {
+    // Defensive: never crash if the bridge misbehaves.
+  }
+}
+
+/** Fires a selection-change haptic (used when switching tabs). Never throws. */
+export function hapticSelection(): void {
+  try {
+    getWebApp()?.HapticFeedback?.selectionChanged?.();
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Sends the user back to the bot (for /upgrade etc.). Robust to missing APIs:
+ * tries openTelegramLink, then openLink, then close(). Never throws.
+ */
+export function openBot(url?: string): void {
+  const wa = getWebApp();
+  try {
+    if (url && wa?.openTelegramLink) {
+      wa.openTelegramLink(url);
+      return;
+    }
+    if (url && wa?.openLink) {
+      wa.openLink(url);
+      return;
+    }
+    wa?.close?.();
+  } catch {
+    // Defensive: never crash.
+  }
 }
 
 const THEME_VAR_MAP: Array<[keyof TelegramThemeParams, string, string]> = [

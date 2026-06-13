@@ -18,7 +18,7 @@ from aiogram.types import Message
 from aiogram.utils.chat_action import ChatActionSender
 
 from ...config import Settings
-from ...core import ChatService, LLMError, RuntimeState, Transcriber, daily_limit
+from ...core import ChatService, ConfigStore, LLMError, Transcriber
 from ...db import Database, repo
 from .. import texts
 
@@ -31,13 +31,13 @@ _TG_LIMIT = 4096  # Telegram hard-caps message text at 4096 chars.
 @router.message(F.text & ~F.text.startswith("/"))
 async def on_text(
     message: Message,
-    settings: Settings,
     db: Database,
     service: ChatService,
+    config: ConfigStore,
 ) -> None:
     if message.from_user is None or not message.text:
         return
-    await respond(message, message.text, settings, db, service)
+    await respond(message, message.text, db, service, config)
 
 
 @router.message(F.voice | F.audio)
@@ -46,12 +46,12 @@ async def on_voice(
     settings: Settings,
     db: Database,
     service: ChatService,
+    config: ConfigStore,
     transcriber: Transcriber,
-    runtime: RuntimeState,
 ) -> None:
     if message.from_user is None:
         return
-    if not runtime.voice_enabled:
+    if not await config.voice_enabled():
         await message.answer(texts.VOICE_DISABLED)
         return
 
@@ -69,15 +69,15 @@ async def on_voice(
 
     # Show the user what we heard, then answer it like any other message.
     await message.answer(texts.voice_heard(text))
-    await respond(message, text, settings, db, service)
+    await respond(message, text, db, service, config)
 
 
 async def respond(
     message: Message,
     user_text: str,
-    settings: Settings,
     db: Database,
     service: ChatService,
+    config: ConfigStore,
 ) -> None:
     """Shared reply path for text and transcribed voice."""
     tg = message.from_user
@@ -87,10 +87,11 @@ async def respond(
         user = await repo.get_or_create_user(
             session, tg.id, username=tg.username, first_name=tg.first_name
         )
-        limit = daily_limit(settings, user)
         used = await repo.used_today(session, tg.id)
         is_premium = user.is_premium
         user_obj = user
+
+    limit = (await config.tier_for(is_premium)).daily_limit
 
     if used >= limit:
         tier = "premium" if is_premium else "free"

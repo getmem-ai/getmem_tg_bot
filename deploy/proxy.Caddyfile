@@ -1,0 +1,12 @@
+# Plain-HTTP reverse proxy used for local tunnel testing (cloudflared
+# terminates TLS in front). Routes one origin to all services:
+#   /api/*    → FastAPI
+#   everything else → the Next.js Mini App
+:80 {
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy miniapp:3000
+	}
+}

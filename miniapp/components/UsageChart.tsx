@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3 } from "lucide-react";
 import type { UsagePoint } from "@/lib/types";
 import { shortDay } from "@/lib/format";
 import { Card, SectionTitle } from "./Card";
@@ -46,6 +47,7 @@ export function UsageChart({ series }: UsageChartProps) {
   return (
     <Card>
       <SectionTitle
+        icon={BarChart3}
         right={<span className="text-xs text-tg-hint">{total} total</span>}
       >
         Last {series.length} days

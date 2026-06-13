@@ -8,6 +8,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
+from ..core import ConfigStore
 from ..db import Database
 from .auth import InitDataError, TelegramUser, parse_auth_header, validate_init_data
 
@@ -18,6 +19,10 @@ def get_settings(request: Request) -> Settings:
 
 def get_db(request: Request) -> Database:
     return request.app.state.db
+
+
+def get_config(request: Request) -> ConfigStore:
+    return request.app.state.config
 
 
 async def db_session(

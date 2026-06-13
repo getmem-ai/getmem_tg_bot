@@ -32,11 +32,92 @@ class TotalsOut(BaseModel):
     payments: int
 
 
+class ModelSpecOut(BaseModel):
+    provider: str
+    id: str
+    label: str
+
+
+class TierInfo(BaseModel):
+    key: str
+    name: str
+    daily_limit: int
+
+
 class MeOut(BaseModel):
     user: UserOut
     usage: UsageOut
     totals: TotalsOut
     is_admin: bool
+    tier: TierInfo
+    available_models: list[ModelSpecOut]
+
+
+class SetModelIn(BaseModel):
+    model: str | None = None
+
+
+class SetModelOut(BaseModel):
+    preferred_model: str | None
+
+
+class RuntimeOut(BaseModel):
+    voice_enabled: bool
+    disabled_models: list[str]
+    all_models: list[ModelSpecOut]
+
+
+class RuntimeIn(BaseModel):
+    voice_enabled: bool | None = None
+    disabled_models: list[str] | None = None
+
+
+class ProviderOut(BaseModel):
+    name: str
+    kind: str
+    is_default: bool
+    enabled: bool
+    has_key: bool
+    key_masked: str | None
+    models: list[str]
+    note: str | None = None
+
+
+class ProvidersOut(BaseModel):
+    providers: list[ProviderOut]
+
+
+class ProviderIn(BaseModel):
+    name: str
+    enabled: bool | None = None
+    api_key: str | None = None
+    models: list[str] | None = None
+
+
+class TierModelIn(BaseModel):
+    provider: str
+    id: str
+
+
+class TierOut(BaseModel):
+    key: str
+    name: str
+    daily_limit: int
+    models: list[ModelSpecOut]
+
+
+class TiersOut(BaseModel):
+    tiers: list[TierOut]
+
+
+class TierIn(BaseModel):
+    key: str
+    daily_limit: int
+    models: list[TierModelIn]
+
+
+class TiersIn(BaseModel):
+    tiers: list[TierIn]
 
 
 class ActivityItem(BaseModel):

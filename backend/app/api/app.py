@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import Settings, load_settings
+from ..core import ConfigStore
 from ..db import Database
 from .routes import router
 
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db = Database(settings.database_url)
         app.state.settings = settings
         app.state.db = db
+        app.state.config = ConfigStore(db, settings)
         log.info("API started (admins: %s)", settings.admin_ids or "none")
         try:
             yield

@@ -20,6 +20,8 @@ from .models import AppSetting, DailyUsage, Message, Payment, User
 SYSTEM_PROMPT_KEY = "system_prompt"
 VOICE_ENABLED_KEY = "voice_enabled"
 DISABLED_MODELS_KEY = "disabled_models"
+PROVIDERS_KEY = "providers"
+TIERS_KEY = "tiers"
 
 
 def _utcnow() -> dt.datetime:

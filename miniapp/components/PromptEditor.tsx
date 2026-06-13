@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Save, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Card, SectionTitle } from "./Card";
 import { CardSkeleton } from "./Skeleton";
+import { Button, SaveMessage, type SaveStatus } from "./ui";
 
-type Status = "idle" | "loading" | "saving" | "saved" | "error";
+type Status = SaveStatus | "loading";
 
 /**
  * Admin-only editor for the bot's system prompt (persona). The prompt is stored
@@ -46,6 +48,7 @@ export function PromptEditor() {
   async function save() {
     const trimmed = value.trim();
     if (!trimmed) {
+      setStatus("error");
       setMessage("Prompt can't be empty.");
       return;
     }
@@ -72,51 +75,37 @@ export function PromptEditor() {
   if (status === "error" && message === "") return null;
 
   return (
-    <div className="space-y-3">
-      <SectionTitle>Bot system prompt</SectionTitle>
-      <Card>
-        {status === "loading" ? (
-          <CardSkeleton lines={4} />
-        ) : (
-          <>
-            <p className="mb-2 text-xs text-tg-hint">
-              Defines what the bot is (its persona/domain). Sent with every
-              message.{" "}
-              {isDefault ? (
-                <span className="text-tg-hint">Currently using the default.</span>
-              ) : (
-                <span className="text-tg-hint">Custom prompt active.</span>
-              )}
-            </p>
-            <textarea
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              rows={7}
-              spellCheck={false}
-              className="w-full resize-y rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 p-3 text-sm text-tg-text outline-none focus:border-tg-button"
-              placeholder="You are a helpful assistant with long-term memory…"
-            />
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <span
-                className={
-                  status === "saved"
-                    ? "text-xs text-green-500"
-                    : "text-xs text-tg-hint"
-                }
-              >
-                {message}
-              </span>
-              <button
-                onClick={save}
-                disabled={status === "saving"}
-                className="shrink-0 rounded-xl bg-tg-button px-4 py-2 text-sm font-semibold text-tg-button-text disabled:opacity-60"
-              >
-                {status === "saving" ? "Saving…" : "Save prompt"}
-              </button>
-            </div>
-          </>
-        )}
-      </Card>
-    </div>
+    <Card>
+      <SectionTitle icon={Sparkles}>System prompt</SectionTitle>
+      {status === "loading" ? (
+        <CardSkeleton lines={4} />
+      ) : (
+        <>
+          <p className="mb-2 text-xs text-tg-hint">
+            Defines the bot&apos;s persona. Sent with every message.{" "}
+            {isDefault ? "Currently using the default." : "Custom prompt active."}
+          </p>
+          <textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            rows={7}
+            spellCheck={false}
+            className="w-full resize-y rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-tg-bg/60 p-3 text-sm text-tg-text outline-none transition focus:border-tg-button"
+            placeholder="You are a helpful assistant with long-term memory…"
+          />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <SaveMessage status={status} message={message} />
+            <Button
+              onClick={save}
+              disabled={status === "saving"}
+              icon={Save}
+              size="sm"
+            >
+              {status === "saving" ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </>
+      )}
+    </Card>
   );
 }

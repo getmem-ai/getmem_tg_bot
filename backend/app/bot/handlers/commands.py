@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from ...config import Settings
-from ...core import MemoryStore, daily_limit, models_for
+from ...core import ConfigStore, MemoryStore
 from ...db import Database, repo
 from .. import keyboards, texts
 
@@ -46,7 +46,9 @@ async def cmd_app(message: Message, settings: Settings) -> None:
 
 
 @router.message(Command("me"))
-async def cmd_me(message: Message, settings: Settings, db: Database) -> None:
+async def cmd_me(
+    message: Message, settings: Settings, db: Database, config: ConfigStore
+) -> None:
     tg = message.from_user
     if tg is None:
         return
@@ -54,7 +56,6 @@ async def cmd_me(message: Message, settings: Settings, db: Database) -> None:
         user = await repo.get_or_create_user(
             session, tg.id, username=tg.username, first_name=tg.first_name
         )
-        limit = daily_limit(settings, user)
         used = await repo.used_today(session, tg.id)
         is_premium = user.is_premium
         model = user.preferred_model or "🔄 auto"
@@ -63,6 +64,7 @@ async def cmd_me(message: Message, settings: Settings, db: Database) -> None:
             if is_premium and user.premium_until
             else None
         )
+    limit = (await config.tier_for(is_premium)).daily_limit
     await message.answer(
         texts.me(
             tier="premium" if is_premium else "free",
@@ -76,7 +78,7 @@ async def cmd_me(message: Message, settings: Settings, db: Database) -> None:
 
 
 @router.message(Command("model"))
-async def cmd_model(message: Message, settings: Settings, db: Database) -> None:
+async def cmd_model(message: Message, db: Database, config: ConfigStore) -> None:
     tg = message.from_user
     if tg is None:
         return
@@ -84,21 +86,17 @@ async def cmd_model(message: Message, settings: Settings, db: Database) -> None:
         user = await repo.get_or_create_user(session, tg.id)
         is_premium = user.is_premium
         current = user.preferred_model
-    text = texts.MODEL_PICK_PREMIUM if is_premium else texts.MODEL_PICK_FREE
+    tier = await config.tier_for(is_premium)
+    model_ids = [m.id for m in tier.models]
     await message.answer(
-        text,
-        reply_markup=keyboards.model_keyboard(
-            settings.free_models,
-            settings.premium_models,
-            is_premium=is_premium,
-            current=current,
-        ),
+        texts.MODEL_PICK,
+        reply_markup=keyboards.model_keyboard(model_ids, current=current),
     )
 
 
 @router.callback_query(F.data.startswith(f"{keyboards.CB_MODEL}:"))
 async def on_model_pick(
-    callback: CallbackQuery, settings: Settings, db: Database
+    callback: CallbackQuery, db: Database, config: ConfigStore
 ) -> None:
     if callback.from_user is None or callback.data is None:
         return
@@ -114,15 +112,9 @@ async def on_model_pick(
             await callback.answer()
             return
 
-        is_premium_model = value in settings.premium_models
-        if is_premium_model and not is_premium:
-            await callback.answer(
-                texts.model_locked_alert(), show_alert=True
-            )
-            return
-        allowed = models_for(settings, user)
-        if value not in allowed:
-            await callback.answer("Unknown model.", show_alert=True)
+        tier = await config.tier_for(is_premium)
+        if value not in {m.id for m in tier.models}:
+            await callback.answer("That model isn't in your plan.", show_alert=True)
             return
         await repo.set_preferred_model(session, callback.from_user.id, value)
 

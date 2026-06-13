@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="banners/banner3.png" alt="GetMem Telegram Bot — a memory-first Telegram bot that actually remembers you" width="100%">
+</p>
+
 <h1 align="center">🧠 GetMem Telegram Bot</h1>
 
 <p align="center">

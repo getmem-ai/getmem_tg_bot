@@ -15,6 +15,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # URL must be provided here (compose passes it as a build arg).
 ARG NEXT_PUBLIC_API_BASE=/api
 ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+ARG NEXT_PUBLIC_BOT_USERNAME=
+ENV NEXT_PUBLIC_BOT_USERNAME=${NEXT_PUBLIC_BOT_USERNAME}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

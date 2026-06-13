@@ -22,32 +22,17 @@ AUTO_VALUE = "__auto__"
 
 
 def model_keyboard(
-    free_models: list[str],
-    premium_models: list[str],
-    *,
-    is_premium: bool,
-    current: str | None,
+    models: list[str], *, current: str | None
 ) -> InlineKeyboardMarkup:
+    """Model picker over the models available to the user's tier."""
     kb = InlineKeyboardBuilder()
-
     auto_label = texts.MODEL_AUTO + (" ✓" if current is None else "")
     kb.row(InlineKeyboardButton(text=auto_label, callback_data=f"{CB_MODEL}:{AUTO_VALUE}"))
-
-    for model in free_models:
+    for model in models:
         mark = " ✓" if model == current else ""
         kb.row(
             InlineKeyboardButton(
-                text=f"🆓 {_short(model)}{mark}",
-                callback_data=f"{CB_MODEL}:{model}",
-            )
-        )
-
-    for model in premium_models:
-        mark = " ✓" if model == current else ""
-        lock = "" if is_premium else " 🔒"
-        kb.row(
-            InlineKeyboardButton(
-                text=f"⭐ {_short(model)}{mark}{lock}",
+                text=f"{_short(model)}{mark}",
                 callback_data=f"{CB_MODEL}:{model}",
             )
         )

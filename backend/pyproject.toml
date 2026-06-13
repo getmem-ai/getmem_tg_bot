@@ -9,6 +9,7 @@ authors = [{ name = "GetMem community" }]
 dependencies = [
     "aiogram>=3.22,<4",
     "openai>=2.0,<3",
+    "anthropic>=0.40",
     "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.29",
     "alembic>=1.13",

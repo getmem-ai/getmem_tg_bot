@@ -1,0 +1,24 @@
+# Overlay that exposes the LOCAL stack over a free public HTTPS URL for testing
+# the Mini App inside Telegram (Telegram requires HTTPS).
+#
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.tunnel.yml up -d proxy cloudflared
+#   docker compose logs cloudflared    # grab the https://…trycloudflare.com URL
+#
+# Then set MINIAPP_URL to that URL and restart the bot so the dashboard button
+# appears. Build the Mini App with NEXT_PUBLIC_API_BASE=/api so it calls the API
+# same-origin through the proxy.
+services:
+  proxy:
+    image: caddy:2-alpine
+    container_name: getmem-proxy
+    restart: unless-stopped
+    depends_on: [api, miniapp]
+    volumes:
+      - ./deploy/proxy.Caddyfile:/etc/caddy/Caddyfile:ro
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: getmem-tunnel
+    restart: unless-stopped
+    depends_on: [proxy]
+    command: tunnel --no-autoupdate --url http://proxy:80

@@ -7,8 +7,9 @@ the core or the call sites.
 
 from __future__ import annotations
 
+from .anthropic_llm import AnthropicLLM
 from .getmem_memory import GetMemMemory
 from .http_transcriber import HttpTranscriber
-from .openrouter_llm import OpenRouterLLM
+from .openai_compat import OpenAICompatLLM
 
-__all__ = ["OpenRouterLLM", "GetMemMemory", "HttpTranscriber"]
+__all__ = ["OpenAICompatLLM", "AnthropicLLM", "GetMemMemory", "HttpTranscriber"]

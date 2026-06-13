@@ -53,3 +53,38 @@ body {
   background-size: 400px 100%;
   animation: shimmer 1.4s ease infinite;
 }
+
+/* Safe-area helpers for the fixed bottom tab bar (notched devices). */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.h-tabbar {
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reserve space at the bottom of scroll content so the tab bar never overlaps. */
+.pb-tabbar {
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .skeleton {
+    animation: none;
+  }
+}

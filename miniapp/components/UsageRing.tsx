@@ -1,3 +1,4 @@
+import { Zap } from "lucide-react";
 import type { Usage } from "@/lib/types";
 import { Card, SectionTitle } from "./Card";
 
@@ -23,7 +24,7 @@ export function UsageRing({ usage }: UsageRingProps) {
 
   return (
     <Card>
-      <SectionTitle>Today&apos;s usage</SectionTitle>
+      <SectionTitle icon={Zap}>Today&apos;s usage</SectionTitle>
       <div className="flex items-center gap-4">
         <div className="relative shrink-0" style={{ width: size, height: size }}>
           <svg width={size} height={size} className="-rotate-90">

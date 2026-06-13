@@ -111,8 +111,7 @@ def payment_success(days: int) -> str:
     )
 
 
-MODEL_PICK_FREE = "Choose a model (🆓 free pool). Premium models need /upgrade."
-MODEL_PICK_PREMIUM = "Choose a model. ⭐ = premium."
+MODEL_PICK = "Choose a model, or keep Auto so I always pick a working one:"
 MODEL_AUTO = "🔄 Auto (recommended)"
 MODEL_SET_AUTO = "✅ Model set to automatic rotation — I'll always pick a working one."
 
