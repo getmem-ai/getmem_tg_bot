@@ -26,14 +26,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        from aiogram import Bot
+
         db = Database(settings.database_url)
         app.state.settings = settings
         app.state.db = db
         app.state.config = ConfigStore(db, settings)
+        # A Bot instance is needed to mint Telegram Stars invoice links for the
+        # Mini App's in-app purchase flow (createInvoiceLink).
+        app.state.bot = Bot(token=settings.bot_token) if settings.bot_token else None
         log.info("API started (admins: %s)", settings.admin_ids or "none")
         try:
             yield
         finally:
+            if app.state.bot is not None:
+                await app.state.bot.session.close()
             await db.dispose()
 
     app = FastAPI(
@@ -45,7 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=False,
-        allow_methods=["GET", "PUT"],
+        allow_methods=["GET", "PUT", "POST"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(router, prefix="/api")

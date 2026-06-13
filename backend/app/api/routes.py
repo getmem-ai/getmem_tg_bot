@@ -15,12 +15,21 @@ from ..core import ConfigStore
 from ..core.config_store import ModelSpec
 from ..db import repo
 from .auth import TelegramUser
-from .deps import current_user, db_session, get_config, get_settings, require_admin
+from .deps import (
+    current_user,
+    db_session,
+    get_bot,
+    get_config,
+    get_settings,
+    require_admin,
+)
 from .schemas import (
     ActivityItem,
     ActivityOut,
     AdminStatsOut,
     HealthOut,
+    InvoiceIn,
+    InvoiceOut,
     MeOut,
     ModelSpecOut,
     PromptIn,
@@ -38,6 +47,7 @@ from .schemas import (
     TiersIn,
     TiersOut,
     TotalsOut,
+    UpgradeTier,
     UsageOut,
     UsagePoint,
     UsageSeriesOut,
@@ -81,6 +91,7 @@ async def me(
     used = await repo.used_today(session, user.id)
     messages = await repo.message_count(session, user.id)
     payments = await repo.payment_count(session, user.id)
+    paid = await config.paid_tiers()
     return MeOut(
         user=UserOut(
             id=db_user.id,
@@ -101,7 +112,53 @@ async def me(
         is_admin=settings.is_admin(user.id),
         tier=TierInfo(key=tier.key, name=tier.name, daily_limit=tier.daily_limit),
         available_models=[_spec_out(m) for m in tier.models],
+        upgrade_tiers=[
+            UpgradeTier(
+                key=t.key,
+                name=t.name,
+                daily_limit=t.daily_limit,
+                price_stars=t.price_stars,
+                period_days=t.period_days,
+                model_count=len(t.models),
+            )
+            for t in paid
+            if t.key != db_user.tier  # don't offer the tier they're already on
+        ],
     )
+
+
+@router.post("/me/invoice", response_model=InvoiceOut)
+async def create_invoice(
+    body: InvoiceIn,
+    user: TelegramUser = Depends(current_user),
+    config: ConfigStore = Depends(get_config),
+    bot=Depends(get_bot),  # type: ignore[no-untyped-def]
+) -> InvoiceOut:
+    """Mint a Telegram Stars invoice link for a paid tier (opened in-app)."""
+    from aiogram.types import LabeledPrice
+
+    if bot is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payments are not configured.",
+        )
+    tier = (await config.tiers()).get(body.tier_key)
+    if tier is None or not tier.is_paid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That plan is not purchasable.",
+        )
+    link = await bot.create_invoice_link(
+        title=f"{tier.name} plan",
+        description=(
+            f"{tier.name}: up to {tier.daily_limit} messages/day for "
+            f"{tier.period_days} days."
+        ),
+        payload=f"tier:{tier.key}",
+        currency="XTR",
+        prices=[LabeledPrice(label=tier.name, amount=tier.price_stars)],
+    )
+    return InvoiceOut(invoice_link=link)
 
 
 @router.put("/me/model", response_model=SetModelOut)

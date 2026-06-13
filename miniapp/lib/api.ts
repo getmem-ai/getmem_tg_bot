@@ -6,6 +6,7 @@ import type {
   ActivityResponse,
   AdminStatsResponse,
   HealthResponse,
+  InvoiceResponse,
   MeResponse,
   PromptResponse,
   ProvidersResponse,
@@ -88,6 +89,12 @@ export const api = {
   me: () => request<MeResponse>("/me"),
   setModel: (model: string | null) =>
     putJson<SetModelResponse>("/me/model", { model }),
+  createInvoice: (tier_key: string) =>
+    request<InvoiceResponse>("/me/invoice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tier_key }),
+    }),
   activity: (limit = 20) =>
     request<ActivityResponse>(`/me/activity?limit=${encodeURIComponent(limit)}`),
   usage: (days = 14) =>

@@ -1,6 +1,8 @@
 // Helpers for interacting with the raw Telegram WebApp object.
 // We intentionally do NOT depend on @telegram-apps SDK to keep deps minimal.
 
+export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
+
 export interface TelegramThemeParams {
   bg_color?: string;
   text_color?: string;
@@ -24,6 +26,7 @@ export interface TelegramWebApp {
   setBackgroundColor?: (color: string) => void;
   openTelegramLink?: (url: string) => void;
   openLink?: (url: string) => void;
+  openInvoice?: (url: string, callback?: (status: InvoiceStatus) => void) => void;
   close?: () => void;
   HapticFeedback?: {
     impactOccurred?: (style: "light" | "medium" | "heavy" | "rigid" | "soft") => void;
@@ -104,6 +107,25 @@ export function openBot(url?: string): void {
     wa?.close?.();
   } catch {
     // Defensive: never crash.
+  }
+}
+
+/**
+ * Opens a Telegram Stars invoice inside the Mini App. Returns true if the
+ * native invoice UI was opened; false if the bridge is unavailable (caller can
+ * then fall back to opening the bot). Never throws.
+ */
+export function openInvoice(
+  url: string,
+  onStatus?: (status: InvoiceStatus) => void,
+): boolean {
+  const wa = getWebApp();
+  if (!wa?.openInvoice) return false;
+  try {
+    wa.openInvoice(url, onStatus);
+    return true;
+  } catch {
+    return false;
   }
 }
 

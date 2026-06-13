@@ -170,7 +170,13 @@ function SettingsTabView({ me }: { me: ReturnType<typeof useApi<MeResponse>> }) 
       </div>
     );
   }
-  return <SettingsTab me={me.data} onModelChange={() => me.reload()} />;
+  return (
+    <SettingsTab
+      me={me.data}
+      onModelChange={() => me.reload()}
+      onReload={() => me.reload()}
+    />
+  );
 }
 
 function BootSkeleton() {

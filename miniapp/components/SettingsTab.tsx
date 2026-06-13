@@ -9,11 +9,10 @@ import { UpgradeCard } from "./UpgradeCard";
 interface SettingsTabProps {
   me: MeResponse;
   onModelChange?: (model: string | null) => void;
+  onReload?: () => void;
 }
 
-export function SettingsTab({ me, onModelChange }: SettingsTabProps) {
-  const isPremium = me.user.is_premium || me.user.tier === "premium";
-
+export function SettingsTab({ me, onModelChange, onReload }: SettingsTabProps) {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -28,7 +27,7 @@ export function SettingsTab({ me, onModelChange }: SettingsTabProps) {
         onChange={onModelChange}
       />
 
-      {!isPremium && <UpgradeCard />}
+      <UpgradeCard tiers={me.upgrade_tiers} onPaid={onReload} />
     </div>
   );
 }

@@ -25,6 +25,10 @@ def get_config(request: Request) -> ConfigStore:
     return request.app.state.config
 
 
+def get_bot(request: Request):  # type: ignore[no-untyped-def]
+    return request.app.state.bot
+
+
 async def db_session(
     db: Database = Depends(get_db),
 ) -> AsyncIterator[AsyncSession]:

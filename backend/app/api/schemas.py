@@ -44,6 +44,15 @@ class TierInfo(BaseModel):
     daily_limit: int
 
 
+class UpgradeTier(BaseModel):
+    key: str
+    name: str
+    daily_limit: int
+    price_stars: int
+    period_days: int
+    model_count: int
+
+
 class MeOut(BaseModel):
     user: UserOut
     usage: UsageOut
@@ -51,6 +60,15 @@ class MeOut(BaseModel):
     is_admin: bool
     tier: TierInfo
     available_models: list[ModelSpecOut]
+    upgrade_tiers: list[UpgradeTier]
+
+
+class InvoiceIn(BaseModel):
+    tier_key: str
+
+
+class InvoiceOut(BaseModel):
+    invoice_link: str
 
 
 class SetModelIn(BaseModel):

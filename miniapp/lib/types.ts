@@ -38,6 +38,15 @@ export interface TierInfo {
   daily_limit: number;
 }
 
+export interface UpgradeTier {
+  key: string;
+  name: string;
+  daily_limit: number;
+  price_stars: number;
+  period_days: number;
+  model_count: number;
+}
+
 export interface MeResponse {
   user: User;
   usage: Usage;
@@ -45,10 +54,15 @@ export interface MeResponse {
   is_admin: boolean;
   tier: TierInfo;
   available_models: ModelSpec[];
+  upgrade_tiers: UpgradeTier[];
 }
 
 export interface SetModelResponse {
   preferred_model: string | null;
+}
+
+export interface InvoiceResponse {
+  invoice_link: string;
 }
 
 export interface ActivityItem {

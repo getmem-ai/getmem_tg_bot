@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
 from ...config import Settings
@@ -15,7 +15,13 @@ router = Router(name="commands")
 
 
 @router.message(Command("start"))
-async def cmd_start(message: Message, settings: Settings, db: Database) -> None:
+async def cmd_start(
+    message: Message,
+    command: CommandObject,
+    settings: Settings,
+    db: Database,
+    config: ConfigStore,
+) -> None:
     tg = message.from_user
     if tg is None:
         return
@@ -23,6 +29,15 @@ async def cmd_start(message: Message, settings: Settings, db: Database) -> None:
         await repo.get_or_create_user(
             session, tg.id, username=tg.username, first_name=tg.first_name
         )
+    # Deep link from the Mini App's fallback (t.me/<bot>?start=upgrade).
+    if (command.args or "").strip() == "upgrade":
+        paid = await config.paid_tiers()
+        if paid:
+            await message.answer(
+                texts.upgrade_offer(paid),
+                reply_markup=keyboards.upgrade_keyboard(paid),
+            )
+            return
     name = tg.first_name or "there"
     await message.answer(
         texts.start(name, settings.memory_enabled, settings.enable_voice),
