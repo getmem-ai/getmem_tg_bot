@@ -35,6 +35,9 @@ models/
 .coverage
 htmlcov/
 
+# Private/internal docs (competitor research etc.) — never publish
+docs/RESEARCH.md
+
 # OS / editor
 .DS_Store
 .idea/
