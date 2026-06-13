@@ -23,8 +23,9 @@ class Container:
         # Operational store (Postgres).
         self.db = Database(settings.database_url)
 
-        # Mutable runtime state admins can toggle (voice, disabled models).
-        self.runtime = RuntimeState.from_settings(settings)
+        # Mutable runtime state admins can toggle (voice, disabled models),
+        # persisted in the DB with env fallback. Hydrate via `await runtime.load()`.
+        self.runtime = RuntimeState.from_settings(settings, self.db)
 
         # AI ports → concrete adapters.
         self.llm: LLMProvider = OpenRouterLLM(

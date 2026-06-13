@@ -87,6 +87,8 @@ async def run_bot(container: Container) -> None:
     dp["runtime"] = container.runtime
 
     try:
+        # Hydrate runtime toggles (voice, disabled models) from the DB.
+        await container.runtime.load()
         await _on_startup(bot, settings, container.memory)
         if settings.use_webhook:
             await _run_webhook(bot, dp, settings)

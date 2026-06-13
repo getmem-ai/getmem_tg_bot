@@ -8,7 +8,7 @@
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/python-3.12-blue">
   <img alt="aiogram" src="https://img.shields.io/badge/aiogram-3.x-2CA5E0">
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-black">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16-black">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
 </p>
 
@@ -112,7 +112,9 @@ system prompt) · `/stats`.
 Operators can manage the bot live from Telegram — no redeploy:
 
 - **Voice on/off** and **per-model enable/disable** (take a flaky model out of
-  rotation) from the `/admin` panel. These are in-memory runtime toggles.
+  rotation) from the `/admin` panel. These toggles are **persisted in the
+  database** (DB wins; the matching `.env` value is just the first-run default),
+  so they survive restarts.
 - **System prompt** (the bot's persona/domain) is stored in the **database**,
   not `.env` — edit it with `/setprompt` or from the Mini App's admin section,
   and it applies to everyone immediately. The bot reads it per request, so a

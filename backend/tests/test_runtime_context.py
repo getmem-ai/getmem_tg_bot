@@ -5,19 +5,20 @@ from app.core.runtime import RuntimeState
 from app.db.models import User
 
 
-def test_runtime_toggle_voice(settings: Settings) -> None:
+async def test_runtime_toggle_voice(settings: Settings) -> None:
+    # No DB bound → pure in-memory (persistence is a no-op).
     rt = RuntimeState.from_settings(settings)
     assert rt.voice_enabled == settings.enable_voice
-    assert rt.toggle_voice() == (not settings.enable_voice)
+    assert await rt.toggle_voice() == (not settings.enable_voice)
 
 
-def test_runtime_disable_model_removes_from_pool(settings: Settings) -> None:
+async def test_runtime_disable_model_removes_from_pool(settings: Settings) -> None:
     rt = RuntimeState.from_settings(settings)
     victim = settings.free_models[0]
-    rt.toggle_model(victim)  # disable
+    await rt.toggle_model(victim)  # disable
     pool = models_for(settings, User(id=1, tier="free"), disabled=rt.disabled_models)
     assert victim not in pool
-    rt.toggle_model(victim)  # re-enable
+    await rt.toggle_model(victim)  # re-enable
     pool = models_for(settings, User(id=1, tier="free"), disabled=rt.disabled_models)
     assert victim in pool
 

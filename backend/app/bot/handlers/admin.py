@@ -90,7 +90,7 @@ async def on_admin_action(
     action = callback.data.split(":", 1)[1]
 
     if action == "voice":
-        on = runtime.toggle_voice()
+        on = await runtime.toggle_voice()
         await callback.answer(texts.admin_voice_toggled(on))
         await callback.message.edit_text(
             await _panel_text(settings, db, runtime),
@@ -131,7 +131,7 @@ async def on_admin_model_toggle(
         await callback.answer("Unknown model.", show_alert=True)
         return
 
-    enabled = runtime.toggle_model(model)
+    enabled = await runtime.toggle_model(model)
     await callback.answer(texts.admin_model_toggled(model, enabled))
     await callback.message.edit_reply_markup(
         reply_markup=keyboards.admin_models_keyboard(pool, runtime.disabled_models)

@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # ---- deps: install production + dev deps for the build ----
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # Use npm ci when a lockfile exists, otherwise fall back to npm install.
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # ---- build: compile the Next.js standalone output ----
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # NEXT_PUBLIC_* vars are inlined into the bundle at build time, so the API base
@@ -20,7 +20,7 @@ COPY . .
 RUN npm run build
 
 # ---- runner: minimal runtime image ----
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
