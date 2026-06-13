@@ -15,9 +15,9 @@ import logging
 from ..config import Settings
 from ..db import Database, repo
 from ..db.models import User
-from .config_store import ConfigStore, TierConfig
+from .config_store import ConfigStore, ModelSpec, TierConfig
 from .context_builder import ContextBuilder
-from .ports import Completion, MemoryStore
+from .ports import Completion, LLMError, MemoryStore
 from .router import ModelRouter, ResolvedSpec
 
 log = logging.getLogger(__name__)
@@ -93,6 +93,73 @@ class ChatService:
                 )
             )
         return specs
+
+    async def _resolve_spec(self, spec: ModelSpec) -> ResolvedSpec | None:
+        """Credential a single model spec (e.g. the vision model)."""
+        p = (await self.config.providers()).get(spec.provider)
+        if p is None or not p.usable:
+            return None
+        return ResolvedSpec(
+            provider=p.name,
+            model=spec.id,
+            api_key=p.api_key or ("ollama" if not p.requires_key else ""),
+            kind=p.kind,
+            base_url=p.base_url,
+        )
+
+    async def reply_image(
+        self, user: User, image_data_url: str, caption: str
+    ) -> Completion:
+        """Answer a photo using the configured vision model. Raises LLMError."""
+        spec = await self._resolve_spec(await self.config.vision_model())
+        if spec is None:
+            raise LLMError("Vision model's provider is not configured.")
+
+        tg_id = user.id
+        ask = caption.strip() or "Describe this image and answer about it helpfully."
+        context = await self.memory.recall(tg_id, caption or "photo")
+        async with self.db.session() as session:
+            history = await repo.recent_history(
+                session, tg_id, self.settings.max_history_turns
+            )
+            used_today = await repo.used_today(session, tg_id)
+        system_prompt = await self.config.system_prompt()
+        tier = await self.config.tier_for_user(user)
+        account = _account_summary(tier, used_today, user.premium_until)
+
+        # Reuse the base prompt (persona + dynamic system msg + history), then
+        # append the multimodal user message (text + image).
+        base = ContextBuilder.build(
+            system_prompt=system_prompt,
+            account_info=account,
+            memory_context=context,
+            history=history,
+            user_text="",
+        )[:-1]  # drop the empty trailing user message
+        base.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": ask},
+                    {"type": "image_url", "image_url": {"url": image_data_url}},
+                ],
+            }
+        )
+
+        max_tokens = await self.config.max_tokens() or None
+        completion = await self.router.complete(base, [spec], max_tokens=max_tokens)
+
+        stored_user = f"🖼 {caption.strip()}" if caption.strip() else "🖼 [photo]"
+        async with self.db.session() as session:
+            await repo.add_message(session, tg_id, "user", stored_user)
+            await repo.add_message(
+                session, tg_id, "assistant", completion.text, model=completion.model
+            )
+            await repo.consume_quota(session, tg_id)
+        self.memory.remember_background(
+            tg_id, f"[sent a photo] {caption}".strip(), completion.text
+        )
+        return completion
 
     async def reply(self, user: User, user_text: str) -> Completion:
         """Produce an assistant reply for ``user_text``."""

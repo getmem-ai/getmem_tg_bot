@@ -71,9 +71,12 @@ const config: Config = {
         ring: "var(--ring)",
       },
       backgroundImage: {
-        primary: "linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%)",
-        accent: "linear-gradient(135deg, var(--accent) 0%, var(--accent-600) 100%)",
-        hero: "linear-gradient(140deg, #2f6bff 0%, #1e4fd6 55%, #1840b0 100%)",
+        // Lighter, softer gradients (avoid heavy flat fills).
+        "grad-primary":
+          "linear-gradient(135deg, #4f86ff 0%, #2f6bff 60%, #1e4fd6 100%)",
+        "grad-accent":
+          "linear-gradient(135deg, #ffa45c 0%, #ff8a3d 60%, #f2701a 100%)",
+        hero: "linear-gradient(140deg, #5b8cff 0%, #2f6bff 55%, #2257e0 100%)",
       },
     },
   },

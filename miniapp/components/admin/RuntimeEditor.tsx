@@ -1,14 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Drama, Mic, PauseCircle, Save, SlidersHorizontal } from "lucide-react";
+import {
+  Drama,
+  Image as ImageIcon,
+  MessageSquareText,
+  Mic,
+  PauseCircle,
+  Save,
+  SlidersHorizontal,
+} from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { RuntimeResponse } from "@/lib/types";
 import { Card, SectionTitle } from "../Card";
 import { CardSkeleton } from "../Skeleton";
 import { ErrorState } from "../ErrorState";
-import { Button, SaveMessage, Toggle, type SaveStatus } from "../ui";
+import { Button, Input, SaveMessage, Toggle, type SaveStatus } from "../ui";
 
 /** Voice transcription toggle + per-model rotation kill-switches. */
 export function RuntimeEditor() {
@@ -28,6 +36,9 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [rolesEnabled, setRolesEnabled] = useState(initial.user_roles_enabled);
   const [paused, setPaused] = useState(initial.generation_paused);
   const [maxTokens, setMaxTokens] = useState<string>(String(initial.max_tokens));
+  const [vision, setVision] = useState(initial.vision_enabled);
+  const [visionModel, setVisionModel] = useState(initial.vision_model);
+  const [welcome, setWelcome] = useState(initial.welcome_message);
   const [disabled, setDisabled] = useState<Set<string>>(
     new Set(initial.disabled_models),
   );
@@ -56,11 +67,17 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         user_roles_enabled: rolesEnabled,
         generation_paused: paused,
         max_tokens: tokens,
+        vision_enabled: vision,
+        vision_model: visionModel.trim() || undefined,
+        welcome_message: welcome,
       });
       setVoice(res.voice_enabled);
       setRolesEnabled(res.user_roles_enabled);
       setPaused(res.generation_paused);
       setMaxTokens(String(res.max_tokens));
+      setVision(res.vision_enabled);
+      setVisionModel(res.vision_model);
+      setWelcome(res.welcome_message);
       setDisabled(new Set(res.disabled_models));
       setStatus("saved");
       setMessage("Saved");
@@ -137,7 +154,59 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         />
       </div>
 
-      <div className="mt-2 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] bg-tg-secondary/50 px-3.5 py-3">
+      {/* Vision (image understanding) */}
+      <div className="mt-2 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <ImageIcon className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Image understanding (vision)</p>
+            <p className="text-xs text-muted">
+              Let users send photos (e.g. count calories from a meal).
+            </p>
+          </div>
+          <Toggle checked={vision} onChange={setVision} label="Vision" />
+        </div>
+        {vision && (
+          <div className="mt-3">
+            <Input
+              value={visionModel}
+              onChange={(e) => setVisionModel(e.target.value)}
+              placeholder="google/gemma-4-31b-it:free"
+              aria-label="Vision model"
+            />
+            <p className="mt-1 text-xs text-muted">
+              Must be a vision-capable model (OpenRouter id). Default works out of
+              the box.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Welcome message */}
+      <div className="mt-2 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <MessageSquareText className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Welcome message (/start)</p>
+            <p className="text-xs text-muted">
+              Use <code>{"{name}"}</code> for the user&rsquo;s name. Empty = default.
+            </p>
+          </div>
+        </div>
+        <textarea
+          value={welcome}
+          onChange={(e) => setWelcome(e.target.value)}
+          rows={4}
+          placeholder="👋 Hi {name}! I'm your assistant…"
+          className="mt-3 w-full resize-y rounded-2xl border border-border bg-surface-2/60 p-3 text-sm text-text outline-none transition focus:border-primary focus:bg-surface focus:shadow-ring"
+        />
+      </div>
+
+      <div className="mt-2 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Max tokens per reply</p>

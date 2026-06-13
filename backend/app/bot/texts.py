@@ -7,19 +7,26 @@ single file makes it trivial to translate or reword the whole UX.
 from __future__ import annotations
 
 
-def start(name: str, memory_on: bool, voice_on: bool = False) -> str:
+def start(
+    name: str, memory_on: bool, voice_on: bool = False, vision_on: bool = False
+) -> str:
     memory_line = (
         "🧠 I have <b>long-term memory</b> — I'll remember what matters about "
         "you across conversations."
         if memory_on
         else "ℹ️ Long-term memory is currently disabled by the operator."
     )
-    voice_line = "🎤 You can also send me <b>voice messages</b>.\n" if voice_on else ""
+    extras = []
+    if voice_on:
+        extras.append("🎤 You can send me <b>voice messages</b>.")
+    if vision_on:
+        extras.append("🖼 You can send me <b>photos</b> and I'll read them.")
+    extra_block = ("\n".join(extras) + "\n") if extras else ""
     return (
         f"👋 Hi {name}!\n\n"
         f"I'm a chat assistant powered by free AI models via OpenRouter.\n"
         f"{memory_line}\n"
-        f"{voice_line}\n"
+        f"{extra_block}\n"
         "Just send me a message and let's talk.\n\n"
         "Useful commands:\n"
         "• /help — what I can do\n"
@@ -231,6 +238,7 @@ def admin_model_toggled(model: str, enabled: bool) -> str:
 
 # -- Voice --------------------------------------------------------------------
 VOICE_DISABLED = "🎤 Voice messages aren't enabled on this bot."
+VISION_DISABLED = "🖼 Image understanding isn't enabled on this bot."
 VOICE_EMPTY = "🤔 I couldn't make out any speech in that. Mind trying again?"
 
 

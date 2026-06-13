@@ -39,9 +39,18 @@ async def cmd_start(
             )
             return
     name = tg.first_name or "there"
+    custom = await config.welcome_message()
+    if custom:
+        text = custom.replace("{name}", name)
+    else:
+        text = texts.start(
+            name,
+            settings.memory_enabled,
+            settings.enable_voice,
+            await config.vision_enabled(),
+        )
     await message.answer(
-        texts.start(name, settings.memory_enabled, settings.enable_voice),
-        reply_markup=keyboards.app_keyboard(settings.miniapp_url),
+        text, reply_markup=keyboards.app_keyboard(settings.miniapp_url)
     )
 
 

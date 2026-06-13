@@ -10,7 +10,11 @@ voice service), so each can be swapped or extended without touching callers.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
+
+# A chat message. `content` is usually a string, but may be a list of content
+# parts (text + image_url) for multimodal/vision requests.
+Message = dict[str, Any]
 
 
 class LLMError(Exception):
@@ -31,7 +35,7 @@ class LLMProvider(Protocol):
 
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[Message],
         models: list[str],
         *,
         temperature: float = 0.7,

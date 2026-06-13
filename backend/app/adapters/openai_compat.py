@@ -14,6 +14,7 @@ model(s) and raise :class:`LLMError` on failure so the router can move on.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from openai import APIError, AsyncOpenAI
 
@@ -55,7 +56,7 @@ class OpenAICompatLLM:
 
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         models: list[str],
         *,
         temperature: float = 0.7,

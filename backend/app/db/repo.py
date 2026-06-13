@@ -25,6 +25,9 @@ TIERS_KEY = "tiers"
 USER_ROLES_KEY = "user_roles_enabled"
 GENERATION_PAUSED_KEY = "generation_paused"
 MAX_TOKENS_KEY = "max_tokens"
+VISION_ENABLED_KEY = "vision_enabled"
+VISION_MODEL_KEY = "vision_model"
+WELCOME_KEY = "welcome_message"
 
 
 def _utcnow() -> dt.datetime:

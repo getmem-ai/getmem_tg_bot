@@ -158,6 +158,10 @@ export interface RuntimeResponse {
   user_roles_enabled: boolean;
   generation_paused: boolean;
   max_tokens: number;
+  vision_enabled: boolean;
+  vision_model: string;
+  vision_provider: string;
+  welcome_message: string;
 }
 
 export interface RuntimeUpdate {
@@ -166,6 +170,10 @@ export interface RuntimeUpdate {
   user_roles_enabled?: boolean;
   generation_paused?: boolean;
   max_tokens?: number;
+  vision_enabled?: boolean;
+  vision_model?: string;
+  vision_provider?: string;
+  welcome_message?: string;
 }
 
 export interface ProviderConfig {

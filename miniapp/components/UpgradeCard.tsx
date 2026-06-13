@@ -61,7 +61,7 @@ export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
       {tiers.map((tier) => (
         <div
           key={tier.key}
-          className="relative overflow-hidden rounded-card-lg bg-brand p-5 text-white shadow-pop"
+          className="relative overflow-hidden rounded-card-lg bg-hero p-5 text-white shadow-pop"
         >
           <div
             aria-hidden

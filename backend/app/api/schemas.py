@@ -101,6 +101,10 @@ class RuntimeOut(BaseModel):
     user_roles_enabled: bool
     generation_paused: bool
     max_tokens: int
+    vision_enabled: bool
+    vision_model: str
+    vision_provider: str
+    welcome_message: str  # "" when using the built-in default
 
 
 class RuntimeIn(BaseModel):
@@ -109,6 +113,10 @@ class RuntimeIn(BaseModel):
     user_roles_enabled: bool | None = None
     generation_paused: bool | None = None
     max_tokens: int | None = None
+    vision_enabled: bool | None = None
+    vision_model: str | None = None
+    vision_provider: str | None = None
+    welcome_message: str | None = None
 
 
 class ProviderOut(BaseModel):

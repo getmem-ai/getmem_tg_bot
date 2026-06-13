@@ -160,6 +160,19 @@ class ConfigStore:
             async with self._db.session() as session:
                 await repo.set_system_prompt(session, prompt)
 
+    # -- welcome message (/start) ---------------------------------------
+
+    async def welcome_message(self) -> str | None:
+        """Custom /start message (or None to use the built-in default)."""
+        stored = await self._get_str(repo.WELCOME_KEY)
+        return stored if stored and stored.strip() else None
+
+    async def set_welcome_message(self, text: str) -> None:
+        """Set (or clear, with an empty string) the custom welcome message."""
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(session, repo.WELCOME_KEY, text.strip())
+
     async def _get_str(self, key: str) -> str | None:
         if self._db is None:
             return None
@@ -220,6 +233,31 @@ class ConfigStore:
                 await repo.set_setting(
                     session, repo.MAX_TOKENS_KEY, str(max(0, value))
                 )
+
+    # -- vision (image understanding) -----------------------------------
+
+    async def vision_enabled(self) -> bool:
+        """Whether the bot understands photos (default: disabled)."""
+        return (await self._get_str(repo.VISION_ENABLED_KEY)) == "true"
+
+    async def set_vision_enabled(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.VISION_ENABLED_KEY, "true" if on else "false"
+                )
+
+    async def vision_model(self) -> ModelSpec:
+        """The model used for image messages. Must be a vision-capable model."""
+        data = await self._get_json(repo.VISION_MODEL_KEY)
+        if isinstance(data, dict) and data.get("id"):
+            return ModelSpec(str(data.get("provider", "openrouter")), str(data["id"]))
+        return ModelSpec("openrouter", "google/gemma-4-31b-it:free")
+
+    async def set_vision_model(self, provider: str, model_id: str) -> None:
+        await self._set_json(
+            repo.VISION_MODEL_KEY, {"provider": provider, "id": model_id}
+        )
 
     async def disabled_models(self) -> set[str]:
         data = await self._get_json(repo.DISABLED_MODELS_KEY)

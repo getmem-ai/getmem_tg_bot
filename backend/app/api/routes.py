@@ -295,6 +295,7 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
     for tier in tiers.values():
         for m in tier.models:
             seen.setdefault(m.id, m)
+    vision = await config.vision_model()
     return RuntimeOut(
         voice_enabled=await config.voice_enabled(),
         disabled_models=sorted(await config.disabled_models()),
@@ -302,6 +303,10 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         user_roles_enabled=await config.user_roles_enabled(),
         generation_paused=await config.generation_paused(),
         max_tokens=await config.max_tokens(),
+        vision_enabled=await config.vision_enabled(),
+        vision_model=vision.id,
+        vision_provider=vision.provider,
+        welcome_message=await config.welcome_message() or "",
     )
 
 
@@ -329,6 +334,14 @@ async def set_runtime(
         await config.set_generation_paused(body.generation_paused)
     if body.max_tokens is not None:
         await config.set_max_tokens(body.max_tokens)
+    if body.vision_enabled is not None:
+        await config.set_vision_enabled(body.vision_enabled)
+    if body.vision_model is not None and body.vision_model.strip():
+        current = await config.vision_model()
+        provider = (body.vision_provider or current.provider).strip() or "openrouter"
+        await config.set_vision_model(provider, body.vision_model.strip())
+    if body.welcome_message is not None:
+        await config.set_welcome_message(body.welcome_message)
     return await _runtime_out(config)
 
 

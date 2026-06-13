@@ -52,7 +52,7 @@ export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
   const showUpgrade = !isPremium && onUpgrade;
 
   return (
-    <section className="relative overflow-hidden rounded-card-lg bg-brand p-5 text-white shadow-pop">
+    <section className="relative overflow-hidden rounded-card-lg bg-hero p-5 text-white shadow-pop">
       {/* Soft decorative glow */}
       <div
         aria-hidden

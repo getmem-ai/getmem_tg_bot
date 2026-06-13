@@ -10,9 +10,11 @@ every model in the pool is unavailable.
 from __future__ import annotations
 
 import asyncio
+import base64
 import io
 import logging
 import re
+from collections.abc import Awaitable, Callable
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
@@ -22,7 +24,9 @@ from aiogram.utils.chat_action import ChatActionSender
 
 from ...config import Settings
 from ...core import ChatService, ConfigStore, LLMError, Transcriber
+from ...core.ports import Completion
 from ...db import Database, repo
+from ...db.models import User
 from .. import texts
 from ..formatting import to_telegram_html
 
@@ -64,7 +68,36 @@ async def on_text(
 ) -> None:
     if message.from_user is None or not message.text:
         return
-    await respond(message, message.text, db, service, config)
+    text = message.text
+    await respond(message, db, config, service, lambda u: service.reply(u, text))
+
+
+@router.message(F.photo)
+async def on_photo(
+    message: Message,
+    db: Database,
+    service: ChatService,
+    config: ConfigStore,
+) -> None:
+    if message.from_user is None or not message.photo:
+        return
+    if not await config.vision_enabled():
+        await message.answer(texts.VISION_DISABLED)
+        return
+    # Largest available size is last; download to memory and build a data URL.
+    bot: Bot = message.bot  # type: ignore[assignment]
+    buffer = io.BytesIO()
+    try:
+        await bot.download(message.photo[-1], destination=buffer)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("photo download failed for tg=%s: %s", message.from_user.id, exc)
+        await message.answer(texts.ERROR_GENERIC)
+        return
+    data_url = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
+    caption = message.caption or ""
+    await respond(
+        message, db, config, service, lambda u: service.reply_image(u, data_url, caption)
+    )
 
 
 @router.message(F.voice | F.audio)
@@ -96,17 +129,17 @@ async def on_voice(
 
     # Show the user what we heard, then answer it like any other message.
     await message.answer(texts.voice_heard(text))
-    await respond(message, text, db, service, config)
+    await respond(message, db, config, service, lambda u: service.reply(u, text))
 
 
 async def respond(
     message: Message,
-    user_text: str,
     db: Database,
-    service: ChatService,
     config: ConfigStore,
+    service: ChatService,
+    generate: Callable[[User], Awaitable[Completion]],
 ) -> None:
-    """Shared reply path for text and transcribed voice."""
+    """Shared reply path: gate (ban/pause/quota), think, generate, deliver."""
     tg = message.from_user
     assert tg is not None
 
@@ -156,7 +189,7 @@ async def respond(
             bot=message.bot, chat_id=message.chat.id, action=ChatAction.TYPING
         ):
             completion = await asyncio.wait_for(
-                service.reply(user_obj, user_text), timeout=timeout
+                generate(user_obj), timeout=timeout
             )
     except (LLMError, asyncio.TimeoutError) as exc:
         # No model answered in time / all busy — nudge free users to upgrade.

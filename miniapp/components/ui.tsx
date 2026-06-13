@@ -30,8 +30,8 @@ interface ButtonProps {
 }
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-primary text-primary-fg shadow-pop",
-  accent: "bg-accent text-accent-fg shadow-pop",
+  primary: "bg-grad-primary text-primary-fg shadow-pop",
+  accent: "bg-grad-accent text-accent-fg shadow-pop",
   secondary: "bg-surface-2 text-text border border-border",
   ghost: "text-primary hover:bg-primary/10",
   danger: "bg-danger/12 text-danger",

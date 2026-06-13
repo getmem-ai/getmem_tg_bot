@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from .ports import Completion, LLMError, LLMProvider
 
@@ -83,7 +84,7 @@ class ModelRouter:
 
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         specs: list[ResolvedSpec],
         *,
         max_tokens: int | None = None,

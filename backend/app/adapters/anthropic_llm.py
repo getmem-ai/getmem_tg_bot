@@ -9,6 +9,7 @@ required. We translate the shared message list accordingly. Implements
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from anthropic import APIError, AsyncAnthropic
 
@@ -28,7 +29,7 @@ class AnthropicLLM:
 
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         models: list[str],
         *,
         temperature: float = 0.7,
