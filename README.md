@@ -61,26 +61,36 @@ getmem_tg_bot/
 │   │   └── config.py
 │   ├── migrations/  Alembic
 │   └── vendor/getmem-ai/   vendored memory SDK
-├── miniapp/         Next.js 14 Telegram Mini App (dashboard + admin)
+├── miniapp/         Next.js 16 Telegram Mini App (dashboard + admin)
 ├── transcriber/     optional faster-whisper voice service
 ├── deploy/          prod (Caddy) + Dokploy compose + docs
 └── docker-compose.yml   local/dev stack
 ```
 
-## 🚀 Quick start (local)
+## ⚡ Install in one command
 
 You need a **Telegram bot token** ([@BotFather](https://t.me/BotFather)) and a free
 **OpenRouter key** ([openrouter.ai/keys](https://openrouter.ai/keys)). A
-**GetMem key** ([getmem.ai](https://getmem.ai)) is optional but it's the whole
-point.
+**GetMem key** ([getmem.ai](https://getmem.ai)) is optional but it's the whole point.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/getmem-ai/getmem_tg_bot/main/scripts/install.sh | bash
+```
+
+The installer checks Docker, downloads the project, asks for your token / admin id /
+keys (secrets hidden), generates a `.env`, and brings the stack up. Flags:
+`--prod` (domain + Caddy auto-HTTPS), `--voice`, `--non-interactive`, `--dir <path>`.
+
+<details>
+<summary>Prefer to do it manually?</summary>
 
 ```bash
 git clone https://github.com/getmem-ai/getmem_tg_bot.git && cd getmem_tg_bot
 cp .env.example .env          # fill BOT_TOKEN, OPENROUTER_API_KEY, GETMEM_API_KEY
 docker compose up -d --build  # db + migrate + bot + api + miniapp
 ```
-
-That's it — message your bot. Add voice with `docker compose --profile voice up -d --build`.
+Add voice with `docker compose --profile voice up -d --build`.
+</details>
 
 ## 🏗️ Architecture
 
