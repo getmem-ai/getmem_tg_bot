@@ -6,7 +6,7 @@ import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { TiersResponse } from "@/lib/types";
 import { Card, SectionTitle } from "../Card";
-import { Button, SaveMessage, type SaveStatus } from "../ui";
+import { Button, Field, SaveMessage, Select, type SaveStatus } from "../ui";
 
 const MAX_LEN = 4096;
 
@@ -77,24 +77,19 @@ export function BroadcastForm() {
       />
 
       <div className="mt-3">
-        <label className="mb-1 block text-xs font-medium text-tg-hint">
-          Audience
-        </label>
-        <select
-          value={tier}
-          onChange={(e) => {
-            setTier(e.target.value);
-            reset();
-          }}
-          className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-tg-secondary/60 px-3.5 py-3 text-sm text-tg-text outline-none transition focus:border-brand focus:bg-tg-bg focus:shadow-ring"
-        >
-          <option value="">All users</option>
-          {tiers.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        <Field label="Audience">
+          <Select
+            value={tier}
+            onChange={(v) => {
+              setTier(v);
+              reset();
+            }}
+            options={[
+              { value: "", label: "All users" },
+              ...tiers.map((t) => ({ value: t.key, label: t.name })),
+            ]}
+          />
+        </Field>
       </div>
 
       <p className="mt-3 text-xs text-tg-hint">

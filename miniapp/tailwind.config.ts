@@ -1,9 +1,10 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Design system tokens. Surfaces/text use the Telegram theme variables (so the
- * app adapts to the user's light/dark theme), while the brand accent is a
- * constant violet for a cohesive, branded look across themes.
+ * Design system — semantic tokens backed by CSS variables (see globals.css),
+ * with a fixed light+dark indigo-blue + orange theme. The legacy `tg-*` names
+ * are aliased onto the new tokens so older markup adopts the palette during the
+ * migration; new/updated components use the semantic names below.
  */
 const config: Config = {
   content: [
@@ -14,45 +15,65 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Theme-adaptive (from Telegram).
-        tg: {
-          bg: "var(--tg-bg)",
-          text: "var(--tg-text)",
-          hint: "var(--tg-hint)",
-          link: "var(--tg-link)",
-          button: "var(--tg-button)",
-          "button-text": "var(--tg-button-text)",
-          secondary: "var(--tg-secondary-bg)",
+        bg: "var(--bg)",
+        surface: { DEFAULT: "var(--surface)", 2: "var(--surface-2)", 3: "var(--surface-3)" },
+        text: "var(--text)",
+        muted: "var(--muted)",
+        border: "var(--border)",
+        "border-strong": "var(--border-strong)",
+        primary: {
+          DEFAULT: "var(--primary)",
+          600: "var(--primary-600)",
+          700: "var(--primary-700)",
+          100: "var(--primary-100)",
+          50: "var(--primary-50)",
+          fg: "var(--on-primary)",
         },
-        // Constant brand ramp (violet).
+        accent: {
+          DEFAULT: "var(--accent)",
+          600: "var(--accent-600)",
+          50: "var(--accent-50)",
+          fg: "var(--on-accent)",
+        },
+        success: "var(--success)",
+        warning: "var(--warning)",
+        danger: "var(--danger)",
+        // Legacy aliases → semantic tokens (so existing markup recolors).
+        tg: {
+          bg: "var(--surface)",
+          text: "var(--text)",
+          hint: "var(--muted)",
+          link: "var(--primary)",
+          button: "var(--primary)",
+          "button-text": "var(--on-primary)",
+          secondary: "var(--surface-2)",
+        },
+        // Legacy brand-* alias → primary (older components used brand).
         brand: {
-          DEFAULT: "#7c5cfc",
-          50: "#f3f1ff",
-          100: "#e9e5ff",
-          200: "#d6ccff",
-          300: "#b9a8ff",
-          400: "#9b82fb",
-          500: "#7c5cfc",
-          600: "#6b46f0",
-          700: "#5a37d6",
-          800: "#4a2fb0",
-          900: "#3d2a8c",
-          fg: "#ffffff",
+          DEFAULT: "var(--primary)",
+          50: "var(--primary-50)",
+          100: "var(--primary-100)",
+          500: "var(--primary)",
+          600: "var(--primary-600)",
+          700: "var(--primary-700)",
+          fg: "var(--on-primary)",
         },
       },
       borderRadius: {
         card: "20px",
-        "card-lg": "28px",
+        "card-lg": "26px",
+        pill: "999px",
       },
       boxShadow: {
-        soft: "0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)",
-        card: "0 6px 20px rgba(17,12,46,.07)",
-        pop: "0 10px 28px rgba(124,92,252,.30)",
-        ring: "0 0 0 4px rgba(124,92,252,.16)",
+        soft: "var(--shadow-soft)",
+        card: "var(--shadow-card)",
+        pop: "var(--shadow-pop)",
+        ring: "var(--ring)",
       },
       backgroundImage: {
-        brand: "linear-gradient(135deg,#7c5cfc 0%,#5b4be0 100%)",
-        "brand-soft": "linear-gradient(135deg,#8f73ff 0%,#6b46f0 100%)",
+        primary: "linear-gradient(135deg, var(--primary) 0%, var(--primary-600) 100%)",
+        accent: "linear-gradient(135deg, var(--accent) 0%, var(--accent-600) 100%)",
+        hero: "linear-gradient(140deg, #2f6bff 0%, #1e4fd6 55%, #1840b0 100%)",
       },
     },
   },

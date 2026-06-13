@@ -129,29 +129,27 @@ export function openInvoice(
   }
 }
 
-const THEME_VAR_MAP: Array<[keyof TelegramThemeParams, string, string]> = [
-  ["bg_color", "--tg-bg", "#ffffff"],
-  ["text_color", "--tg-text", "#000000"],
-  ["hint_color", "--tg-hint", "#707579"],
-  ["link_color", "--tg-link", "#2481cc"],
-  ["button_color", "--tg-button", "#2481cc"],
-  ["button_text_color", "--tg-button-text", "#ffffff"],
-  ["secondary_bg_color", "--tg-secondary-bg", "#f1f1f1"],
-];
-
-/** Maps Telegram themeParams onto CSS variables so the app matches the user's theme. */
+/**
+ * Apply our own design-system theme. We use a fixed branded palette (see
+ * globals.css) and only honour the user's light/dark *preference* via the
+ * `data-theme` attribute — we deliberately don't adopt Telegram's theme colors.
+ */
 export function applyTheme(wa: TelegramWebApp | null): void {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const params = wa?.themeParams ?? {};
+  const dark = wa?.colorScheme === "dark";
+  root.dataset.theme = dark ? "dark" : "light";
+  root.style.colorScheme = dark ? "dark" : "light";
 
-  for (const [key, cssVar, fallback] of THEME_VAR_MAP) {
-    const value = params[key];
-    root.style.setProperty(cssVar, value || fallback);
-  }
-
-  if (wa?.colorScheme) {
-    root.style.colorScheme = wa.colorScheme;
+  // Match the Telegram chrome (header/background) to our app background.
+  try {
+    const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
+    if (bg) {
+      wa?.setBackgroundColor?.(bg);
+      wa?.setHeaderColor?.(bg);
+    }
+  } catch {
+    // ignore — chrome theming is best-effort.
   }
 }
 
@@ -170,9 +168,6 @@ export function initWebApp(onThemeChange?: () => void): () => void {
   try {
     wa.ready();
     wa.expand();
-    if (wa.themeParams.bg_color && wa.setBackgroundColor) {
-      wa.setBackgroundColor(wa.themeParams.bg_color);
-    }
   } catch {
     // Defensive: never crash if the Telegram bridge misbehaves.
   }

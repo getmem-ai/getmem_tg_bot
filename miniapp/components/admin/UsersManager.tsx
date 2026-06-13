@@ -22,7 +22,9 @@ import { ErrorState } from "../ErrorState";
 import {
   Button,
   EmptyState,
+  Field,
   SaveMessage,
+  Select,
   type SaveStatus,
 } from "../ui";
 
@@ -385,26 +387,21 @@ function UserActions({
       </div>
 
       {/* Plan */}
-      <div>
-        <label className="mb-1 block text-[11px] font-medium text-tg-hint">
-          Plan
-        </label>
-        <select
+      <Field label="Plan">
+        <Select
           value={user.tier}
           disabled={saving}
-          onChange={(e) => apply({ tier: e.target.value }, "Plan updated")}
-          className={numberFieldClass}
-        >
-          {tiers.some((t) => t.key === user.tier) ? null : (
-            <option value={user.tier}>{user.tier}</option>
-          )}
-          {tiers.map((t) => (
-            <option key={t.key} value={t.key}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
+          onChange={(v) => apply({ tier: v }, "Plan updated")}
+          options={
+            tiers.some((t) => t.key === user.tier)
+              ? tiers.map((t) => ({ value: t.key, label: t.name }))
+              : [
+                  { value: user.tier, label: user.tier },
+                  ...tiers.map((t) => ({ value: t.key, label: t.name })),
+                ]
+          }
+        />
+      </Field>
 
       {/* Daily limit override */}
       <div>

@@ -2,30 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design system — fixed, branded light + dark theme (indigo-blue + orange).
+ * We intentionally DON'T inherit Telegram's theme colors (only its light/dark
+ * preference, applied via [data-theme]) so we fully control the premium look.
+ * Components read semantic tokens (bg/surface/text/muted/border/primary/accent),
+ * never raw hex.
+ */
 :root {
-  /* Telegram theme fallbacks (light). Overridden at runtime by applyTheme(). */
-  --tg-bg: #ffffff;
-  --tg-text: #000000;
-  --tg-hint: #707579;
-  --tg-link: #2481cc;
-  --tg-button: #2481cc;
-  --tg-button-text: #ffffff;
-  --tg-secondary-bg: #f1f1f1;
+  /* Surfaces & text (light) */
+  --bg: #f5f6fb;        /* app background (soft cool gray) */
+  --surface: #ffffff;   /* cards */
+  --surface-2: #eef1f8; /* tracks, inputs, secondary fills */
+  --surface-3: #e6eaf3; /* hover/pressed fills */
+  --text: #0f1222;
+  --muted: #6b7384;
+  --border: rgba(15, 18, 34, 0.08);
+  --border-strong: rgba(15, 18, 34, 0.14);
 
-  /* Constant brand accent (violet) — mirrors the tailwind brand ramp. */
-  --brand: #7c5cfc;
-  --brand-600: #6b46f0;
-  --brand-100: #e9e5ff;
-  --brand-50: #f3f1ff;
+  /* Brand: indigo-blue primary */
+  --primary: #2f6bff;
+  --primary-600: #1e4fd6;
+  --primary-700: #1840b0;
+  --primary-100: #dbe6ff;
+  --primary-50: #eef3ff;
+  --on-primary: #ffffff;
+
+  /* Accent: warm orange */
+  --accent: #ff8a3d;
+  --accent-600: #f2701a;
+  --accent-50: #fff3ea;
+  --on-accent: #ffffff;
+
+  /* Semantic */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #ef4444;
+
+  /* Elevation (soft, layered) */
+  --shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-card: 0 8px 24px rgba(23, 31, 70, 0.08);
+  --shadow-pop: 0 12px 30px rgba(47, 107, 255, 0.30);
+  --ring: 0 0 0 4px rgba(47, 107, 255, 0.16);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0d0f14;
+  --surface: #171a22;
+  --surface-2: #1f2531;
+  --surface-3: #28303f;
+  --text: #eef1f7;
+  --muted: #9aa3b4;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --primary: #5b86ff;
+  --primary-600: #3f6dff;
+  --primary-700: #6f95ff;
+  --primary-100: rgba(91, 134, 255, 0.18);
+  --primary-50: rgba(91, 134, 255, 0.10);
+  --on-primary: #0b1020;
+
+  --accent: #ff9d57;
+  --accent-600: #ff8a3d;
+  --accent-50: rgba(255, 138, 61, 0.12);
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 12px 30px rgba(47, 107, 255, 0.45);
+  --ring: 0 0 0 4px rgba(91, 134, 255, 0.22);
+
+  color-scheme: dark;
 }
 
 html,
 body {
-  background-color: var(--tg-bg);
-  color: var(--tg-text);
+  background-color: var(--bg);
+  color: var(--text);
 }
 
-/* Soft branded glow behind the app — subtle and theme-safe (light & dark). */
+/* Subtle branded glow behind the app (works on light & dark). */
 body::before {
   content: "";
   position: fixed;
@@ -33,17 +91,17 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(900px 460px at 50% -10%, rgba(124, 92, 252, 0.12), transparent 70%),
-    radial-gradient(680px 360px at 100% 2%, rgba(124, 92, 252, 0.06), transparent 65%);
+    radial-gradient(900px 460px at 50% -12%, rgba(47, 107, 255, 0.12), transparent 70%),
+    radial-gradient(620px 320px at 100% 4%, rgba(255, 138, 61, 0.10), transparent 65%);
 }
 
 body {
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
-/* Hide scrollbars for a more native feel while keeping scroll. */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -53,55 +111,39 @@ body {
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: -400px 0;
-  }
-  100% {
-    background-position: 400px 0;
-  }
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }
-
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--tg-secondary-bg) 25%,
-    rgba(127, 127, 127, 0.12) 37%,
-    var(--tg-secondary-bg) 63%
+    var(--surface-2) 25%,
+    var(--surface-3) 37%,
+    var(--surface-2) 63%
   );
   background-size: 400px 100%;
   animation: shimmer 1.4s ease infinite;
 }
 
-/* Safe-area helpers for the fixed bottom tab bar (notched devices). */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.h-tabbar {
-  height: calc(56px + env(safe-area-inset-bottom, 0px));
-}
-
-/* Reserve space at the bottom of scroll content so the tab bar never overlaps. */
-.pb-tabbar {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-}
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.h-tabbar { height: calc(60px + env(safe-area-inset-bottom, 0px)); }
+.pb-tabbar { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
 @keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.animate-fade-in { animation: fade-in 0.25s ease both; }
 
-.animate-fade-in {
-  animation: fade-in 0.25s ease both;
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.animate-sheet-up { animation: sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
+  .animate-sheet-up,
   .skeleton {
     animation: none;
   }
