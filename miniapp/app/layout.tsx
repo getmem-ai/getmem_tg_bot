@@ -3,8 +3,9 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bot Dashboard",
-  description: "Your usage and activity for the Telegram bot.",
+  title: "GetMem — Dashboard",
+  description: "Your usage, memory and plan for the GetMem assistant.",
+  icons: { icon: "/brand/logo.png", apple: "/brand/logo.png" },
 };
 
 export const viewport: Viewport = {
@@ -28,7 +29,7 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
       </head>
-      <body className="min-h-screen bg-tg-bg text-tg-text">{children}</body>
+      <body className="min-h-screen bg-bg text-text">{children}</body>
     </html>
   );
 }

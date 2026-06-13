@@ -319,12 +319,14 @@ export function Toggle({ checked, onChange, disabled, label }: ToggleProps) {
         haptic("light");
         onChange(!checked);
       }}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50 ${
-        checked ? "bg-primary" : "bg-muted/35"
+      className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition disabled:opacity-50 ${
+        checked
+          ? "border-primary bg-primary"
+          : "border-border-strong bg-surface-3 dark:bg-white/15"
       }`}
     >
       <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-1 ring-black/10 transition ${
           checked ? "translate-x-[22px]" : "translate-x-0.5"
         }`}
       />

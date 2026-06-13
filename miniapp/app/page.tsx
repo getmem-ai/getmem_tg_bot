@@ -12,6 +12,7 @@ import type {
 } from "@/lib/types";
 
 import { OpenInTelegram } from "@/components/OpenInTelegram";
+import { AppHeader } from "@/components/AppHeader";
 import { PageHeader } from "@/components/Card";
 import { ProfileCard } from "@/components/ProfileCard";
 import { UsageRing } from "@/components/UsageRing";
@@ -79,6 +80,7 @@ function Shell() {
   return (
     <>
       <main className="mx-auto w-full max-w-md px-4 pt-5 pb-tabbar">
+        <AppHeader />
         <div key={tab} className="animate-fade-in">
           {tab === "home" && <HomeTab me={me} onUpgrade={() => setTab("settings")} />}
           {tab === "activity" && <ActivityTab />}
@@ -194,6 +196,7 @@ function SettingsTabView({ me }: { me: ReturnType<typeof useApi<MeResponse>> }) 
 function BootSkeleton() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-5">
+      <AppHeader />
       <CardSkeleton lines={2} />
       <CardSkeleton lines={2} />
       <CardSkeleton lines={4} />
