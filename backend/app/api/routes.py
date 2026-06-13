@@ -114,6 +114,7 @@ async def me(
             premium_until=db_user.premium_until,
             preferred_model=db_user.preferred_model,
             role=db_user.role,
+            role_enabled=db_user.role_enabled,
             banned=db_user.banned,
             created_at=db_user.created_at,
         ),
@@ -154,9 +155,15 @@ async def set_my_role(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Personal roles are disabled by the operator.",
         )
-    role = (body.role or "").strip()[:1000] or None
-    await repo.set_role(session, user.id, role)
-    return RoleOut(role=role)
+    fields = body.model_fields_set
+    db_user = await repo.get_or_create_user(session, user.id)
+    if "role" in fields:
+        await repo.set_role(session, user.id, (body.role or "").strip()[:1000] or None)
+    if "enabled" in fields and body.enabled is not None:
+        await repo.set_role_enabled(session, user.id, body.enabled)
+    await session.flush()
+    refreshed = await repo.get_user(session, user.id) or db_user
+    return RoleOut(role=refreshed.role, enabled=refreshed.role_enabled)
 
 
 @router.post("/me/invoice", response_model=InvoiceOut)

@@ -103,7 +103,11 @@ class ChatService:
         tier = await self.config.tier_for_user(user)
         account = _account_summary(tier, used_today, user.premium_until)
         user_role = ""
-        if user.role and await self.config.user_roles_enabled():
+        if (
+            user.role
+            and user.role_enabled
+            and await self.config.user_roles_enabled()
+        ):
             user_role = user.role
 
         # 4. Build the prompt (persona stays its own message so it stays

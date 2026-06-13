@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Check, Cpu, Shuffle } from "lucide-react";
+import { Check, Shuffle } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { ModelSpec } from "@/lib/types";
-import { Card, SectionTitle } from "./Card";
+import { Card } from "./Card";
 import { SaveMessage, type SaveStatus } from "./ui";
 
 interface ModelPickerProps {
@@ -53,12 +53,11 @@ export function ModelPicker({ available, current, onChange }: ModelPickerProps) 
 
   return (
     <Card>
-      <SectionTitle
-        icon={Cpu}
-        right={<SaveMessage status={status} message={message} />}
-      >
-        Model
-      </SectionTitle>
+      {message && (
+        <div className="mb-2 flex justify-end">
+          <SaveMessage status={status} message={message} />
+        </div>
+      )}
 
       <ul className="-mx-1 space-y-1">
         <ModelRow

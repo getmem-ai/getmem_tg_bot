@@ -73,6 +73,13 @@ async def set_role(session: AsyncSession, user_id: int, role: str | None) -> Non
     user.role = role
 
 
+async def set_role_enabled(
+    session: AsyncSession, user_id: int, enabled: bool
+) -> None:
+    user = await get_or_create_user(session, user_id)
+    user.role_enabled = enabled
+
+
 async def set_tier(
     session: AsyncSession, user_id: int, tier_key: str, until: dt.datetime | None
 ) -> None:

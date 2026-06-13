@@ -33,6 +33,7 @@ export function AdminTab() {
         options={SECTIONS}
         value={section}
         onChange={setSection}
+        scroll
       />
 
       <div key={section} className="animate-fade-in space-y-3">

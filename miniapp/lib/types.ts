@@ -19,6 +19,7 @@ export interface User {
   premium_until: string | null;
   preferred_model: string | null;
   role: string | null;
+  role_enabled: boolean;
   created_at: string;
 }
 
@@ -65,6 +66,7 @@ export interface SetModelResponse {
 
 export interface SetRoleResponse {
   role: string | null;
+  enabled: boolean;
 }
 
 export interface InvoiceResponse {

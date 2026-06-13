@@ -93,8 +93,8 @@ export const api = {
   me: () => request<MeResponse>("/me"),
   setModel: (model: string | null) =>
     putJson<SetModelResponse>("/me/model", { model }),
-  setRole: (role: string | null) =>
-    putJson<SetRoleResponse>("/me/role", { role }),
+  setRole: (update: { role?: string | null; enabled?: boolean }) =>
+    putJson<SetRoleResponse>("/me/role", update),
   createInvoice: (tier_key: string) =>
     request<InvoiceResponse>("/me/invoice", {
       method: "POST",

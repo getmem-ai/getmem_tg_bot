@@ -44,8 +44,12 @@ class User(Base):
     tier: Mapped[str] = mapped_column(String(16), default="free", server_default="free")
     preferred_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     # Optional user-defined role appended to the system instructions for this
-    # user's chats (e.g. "You are my English teacher"). Admin-gateable.
+    # user's chats (e.g. "You are my English teacher"). Off by default; the user
+    # opts in via role_enabled, and the admin can disable the whole feature.
     role: Mapped[str | None] = mapped_column(Text, nullable=True)
+    role_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa_false()
+    )
     premium_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

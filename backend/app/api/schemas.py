@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     premium_until: dt.datetime | None
     preferred_model: str | None
     role: str | None
+    role_enabled: bool = False
     banned: bool = False
     created_at: dt.datetime
 
@@ -67,11 +68,14 @@ class MeOut(BaseModel):
 
 
 class RoleIn(BaseModel):
+    # Partial: only fields explicitly present are applied.
     role: str | None = None
+    enabled: bool | None = None
 
 
 class RoleOut(BaseModel):
     role: str | None
+    enabled: bool
 
 
 class InvoiceIn(BaseModel):
