@@ -570,11 +570,17 @@ async def admin_update_user(
             )
         if key == "free":
             await repo.set_tier(session, user_id, "free", None)
+            # Drop a premium-only model preference so they fall back to auto.
+            await repo.set_preferred_model(session, user_id, None)
         else:
             until = dt.datetime.now(dt.timezone.utc) + dt.timedelta(
                 days=tiers[key].period_days or 30
             )
             await repo.set_tier(session, user_id, key, until)
+            # Smart switch: auto-select the new tier's flagship model.
+            top = await config.top_model_for_tier(tiers[key])
+            if top:
+                await repo.set_preferred_model(session, user_id, top)
     if "reset_usage" in fields and body.reset_usage:
         await repo.reset_today_usage(session, user_id)
 

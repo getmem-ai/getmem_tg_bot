@@ -30,6 +30,15 @@ async def test_providers_default(settings: Settings) -> None:
     assert not providers["anthropic"].has_key
 
 
+async def test_top_model_for_tier_picks_first_usable(settings: Settings) -> None:
+    config = ConfigStore(None, settings)
+    tiers = await config.tiers()
+    premium = tiers["premium"]
+    # Default openrouter provider is usable, so the flagship is the first model.
+    top = await config.top_model_for_tier(premium)
+    assert top == premium.models[0].id
+
+
 async def test_runtime_defaults(settings: Settings) -> None:
     config = ConfigStore(None, settings)
     assert await config.voice_enabled() == settings.enable_voice

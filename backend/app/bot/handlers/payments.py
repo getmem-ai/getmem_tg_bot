@@ -94,6 +94,12 @@ async def on_paid(
             first_name=message.from_user.first_name,
         )
         await repo.set_tier(session, message.from_user.id, tier_key, until)
+        # Smart switch: put the new premium user straight on the flagship model
+        # so they don't have to hunt for it in /model.
+        if tier is not None:
+            top = await config.top_model_for_tier(tier)
+            if top:
+                await repo.set_preferred_model(session, message.from_user.id, top)
         await repo.record_payment(
             session,
             sp.telegram_payment_charge_id,

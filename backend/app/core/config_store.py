@@ -468,6 +468,21 @@ class ConfigStore:
             return tiers[key]
         return tiers.get("free") or self._default_free()
 
+    async def top_model_for_tier(self, tier: TierConfig) -> str | None:
+        """The flagship model of a tier: the first model that is neither
+        disabled nor on an unconfigured provider. Used to auto-select the best
+        model for a user the moment they gain premium. Falls back to the tier's
+        first model, or ``None`` for an empty tier."""
+        disabled = await self.disabled_models()
+        providers = await self.providers()
+        for m in tier.models:
+            if m.id in disabled:
+                continue
+            p = providers.get(m.provider)
+            if p is not None and p.usable:
+                return m.id
+        return tier.models[0].id if tier.models else None
+
 
 def _slug(value: str) -> str:
     """Normalise a tier key: lowercase, alnum + underscores."""
