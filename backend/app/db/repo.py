@@ -282,6 +282,16 @@ async def set_banned(session: AsyncSession, user_id: int, banned: bool) -> None:
     user.banned = banned
 
 
+async def set_admin(session: AsyncSession, user_id: int, value: bool) -> None:
+    user = await get_or_create_user(session, user_id)
+    user.is_admin = value
+
+
+async def is_db_admin(session: AsyncSession, user_id: int) -> bool:
+    user = await session.get(User, user_id)
+    return bool(user and user.is_admin)
+
+
 async def set_limit_override(
     session: AsyncSession, user_id: int, value: int | None
 ) -> None:

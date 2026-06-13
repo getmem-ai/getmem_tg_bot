@@ -25,6 +25,14 @@ from .. import keyboards, texts
 router = Router(name="admin")
 
 
+async def _is_admin(settings: Settings, db: Database, user_id: int) -> bool:
+    """Admin = env ADMIN_IDS (permanent) OR the grantable DB flag."""
+    if settings.is_admin(user_id):
+        return True
+    async with db.session() as session:
+        return await repo.is_db_admin(session, user_id)
+
+
 async def _all_models(config: ConfigStore) -> list[str]:
     """Every model id across all tiers — the admin's enable/disable space."""
     tiers = await config.tiers()
@@ -49,7 +57,9 @@ async def _panel_text(db: Database, config: ConfigStore) -> str:
 async def cmd_admin(
     message: Message, settings: Settings, db: Database, config: ConfigStore
 ) -> None:
-    if message.from_user is None or not settings.is_admin(message.from_user.id):
+    if message.from_user is None or not await _is_admin(
+        settings, db, message.from_user.id
+    ):
         return  # silently ignore non-admins
     await message.answer(
         await _panel_text(db, config),
@@ -61,9 +71,11 @@ async def cmd_admin(
 
 @router.message(Command("getprompt"))
 async def cmd_getprompt(
-    message: Message, settings: Settings, config: ConfigStore
+    message: Message, settings: Settings, db: Database, config: ConfigStore
 ) -> None:
-    if message.from_user is None or not settings.is_admin(message.from_user.id):
+    if message.from_user is None or not await _is_admin(
+        settings, db, message.from_user.id
+    ):
         return
     prompt = await config.system_prompt()
     is_default = await config.system_prompt_is_default()
@@ -72,9 +84,15 @@ async def cmd_getprompt(
 
 @router.message(Command("setprompt"))
 async def cmd_setprompt(
-    message: Message, command: CommandObject, settings: Settings, config: ConfigStore
+    message: Message,
+    command: CommandObject,
+    settings: Settings,
+    db: Database,
+    config: ConfigStore,
 ) -> None:
-    if message.from_user is None or not settings.is_admin(message.from_user.id):
+    if message.from_user is None or not await _is_admin(
+        settings, db, message.from_user.id
+    ):
         return
     new_prompt = (command.args or "").strip()
     if not new_prompt:
@@ -88,7 +106,9 @@ async def cmd_setprompt(
 async def on_admin_action(
     callback: CallbackQuery, settings: Settings, db: Database, config: ConfigStore
 ) -> None:
-    if callback.from_user is None or not settings.is_admin(callback.from_user.id):
+    if callback.from_user is None or not await _is_admin(
+        settings, db, callback.from_user.id
+    ):
         await callback.answer(texts.ADMIN_ONLY, show_alert=True)
         return
     if callback.data is None or not isinstance(callback.message, Message):
@@ -125,9 +145,11 @@ async def on_admin_action(
 
 @router.callback_query(F.data.startswith(f"{keyboards.CB_ADMIN_MODEL}:"))
 async def on_admin_model_toggle(
-    callback: CallbackQuery, settings: Settings, config: ConfigStore
+    callback: CallbackQuery, settings: Settings, db: Database, config: ConfigStore
 ) -> None:
-    if callback.from_user is None or not settings.is_admin(callback.from_user.id):
+    if callback.from_user is None or not await _is_admin(
+        settings, db, callback.from_user.id
+    ):
         await callback.answer(texts.ADMIN_ONLY, show_alert=True)
         return
     if callback.data is None or not isinstance(callback.message, Message):

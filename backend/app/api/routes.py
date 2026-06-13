@@ -132,7 +132,7 @@ async def me(
             remaining=max(0, limit - used),
         ),
         totals=TotalsOut(messages=messages, payments=payments),
-        is_admin=settings.is_admin(user.id),
+        is_admin=settings.is_admin(user.id) or db_user.is_admin,
         tier=TierInfo(key=tier.key, name=tier.name, daily_limit=tier.daily_limit),
         available_models=[_spec_out(m) for m in tier.models],
         upgrade_tiers=[
@@ -421,9 +421,10 @@ async def set_tiers(
     return TiersOut(tiers=[_tier_out(t) for t in tiers.values()])
 
 
-async def _admin_user(session, config: ConfigStore, u) -> AdminUser:  # type: ignore[no-untyped-def]
+async def _admin_user(session, settings: Settings, config: ConfigStore, u) -> AdminUser:  # type: ignore[no-untyped-def]
     tier = await config.tier_for_user(u)
     limit = u.limit_override if u.limit_override is not None else tier.daily_limit
+    env_admin = settings.is_admin(u.id)
     return AdminUser(
         id=u.id,
         first_name=u.first_name,
@@ -432,6 +433,8 @@ async def _admin_user(session, config: ConfigStore, u) -> AdminUser:  # type: ig
         is_premium=u.is_premium,
         premium_until=u.premium_until,
         banned=u.banned,
+        is_admin=env_admin or u.is_admin,
+        env_admin=env_admin,
         limit_override=u.limit_override,
         used_today=await repo.used_today(session, u.id),
         daily_limit=limit,
@@ -447,6 +450,7 @@ async def admin_list_users(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     _admin: TelegramUser = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
     config: ConfigStore = Depends(get_config),
     session: AsyncSession = Depends(db_session),
 ) -> AdminUsersOut:
@@ -454,7 +458,7 @@ async def admin_list_users(
         session, search=search, limit=limit, offset=offset
     )
     return AdminUsersOut(
-        users=[await _admin_user(session, config, u) for u in users],
+        users=[await _admin_user(session, settings, config, u) for u in users],
         total=total,
         limit=limit,
         offset=offset,
@@ -466,6 +470,7 @@ async def admin_update_user(
     user_id: int,
     body: AdminUserUpdate,
     _admin: TelegramUser = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
     config: ConfigStore = Depends(get_config),
     session: AsyncSession = Depends(db_session),
 ) -> AdminUser:
@@ -474,6 +479,8 @@ async def admin_update_user(
 
     if "banned" in fields and body.banned is not None:
         await repo.set_banned(session, user_id, body.banned)
+    if "is_admin" in fields and body.is_admin is not None:
+        await repo.set_admin(session, user_id, body.is_admin)
     if "limit_override" in fields:
         await repo.set_limit_override(session, user_id, body.limit_override)
     if "tier" in fields:
@@ -495,7 +502,7 @@ async def admin_update_user(
 
     await session.flush()
     user = await repo.get_user(session, user_id) or user
-    return await _admin_user(session, config, user)
+    return await _admin_user(session, settings, config, user)
 
 
 _BROADCAST_TASKS: set[asyncio.Task[None]] = set()

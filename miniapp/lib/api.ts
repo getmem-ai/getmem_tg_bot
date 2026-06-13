@@ -8,6 +8,8 @@ import type {
   AdminUser,
   AdminUsersResponse,
   AdminUserUpdate,
+  AnalyticsResponse,
+  BroadcastResponse,
   HealthResponse,
   InvoiceResponse,
   MeResponse,
@@ -138,6 +140,16 @@ export const api = {
   getTiers: () => request<TiersResponse>("/admin/tiers"),
   setTiers: (tiers: TierUpdate[]) =>
     putJson<TiersResponse>("/admin/tiers", { tiers }),
+
+  // ---- Admin: analytics & broadcast ----
+  getAnalytics: (days = 14) =>
+    request<AnalyticsResponse>(`/admin/analytics?days=${encodeURIComponent(days)}`),
+  broadcast: (text: string, tier?: string | null) =>
+    request<BroadcastResponse>("/admin/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, tier: tier ?? null }),
+    }),
 
   health: () => request<HealthResponse>("/health"),
 };

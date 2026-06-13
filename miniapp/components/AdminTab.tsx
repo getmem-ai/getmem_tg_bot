@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, LayoutGrid, Layers, Server, Shield, Users } from "lucide-react";
+import {
+  Bot,
+  LayoutGrid,
+  Layers,
+  Megaphone,
+  Server,
+  Shield,
+  Users,
+} from "lucide-react";
 import { PageHeader } from "./Card";
 import { SegmentedControl, type SegmentOption } from "./ui";
 import { AdminOverview } from "./admin/AdminOverview";
@@ -9,14 +17,22 @@ import { RuntimeEditor } from "./admin/RuntimeEditor";
 import { ProvidersEditor } from "./admin/ProvidersEditor";
 import { TiersEditor } from "./admin/TiersEditor";
 import { UsersManager } from "./admin/UsersManager";
+import { BroadcastForm } from "./admin/BroadcastForm";
 import { PromptEditor } from "./PromptEditor";
 
-type Section = "overview" | "users" | "bot" | "providers" | "tiers";
+type Section =
+  | "overview"
+  | "users"
+  | "bot"
+  | "broadcast"
+  | "providers"
+  | "tiers";
 
 const SECTIONS: ReadonlyArray<SegmentOption<Section>> = [
   { value: "overview", label: "Overview", icon: LayoutGrid },
   { value: "users", label: "Users", icon: Users },
   { value: "bot", label: "Bot", icon: Bot },
+  { value: "broadcast", label: "Broadcast", icon: Megaphone },
   { value: "providers", label: "Providers", icon: Server },
   { value: "tiers", label: "Tiers", icon: Layers },
 ];
@@ -45,6 +61,7 @@ export function AdminTab() {
             <RuntimeEditor />
           </>
         )}
+        {section === "broadcast" && <BroadcastForm />}
         {section === "providers" && <ProvidersEditor />}
         {section === "tiers" && <TiersEditor />}
       </div>

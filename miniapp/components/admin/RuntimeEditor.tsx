@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Drama, Mic, Save, SlidersHorizontal } from "lucide-react";
+import { Drama, Mic, PauseCircle, Save, SlidersHorizontal } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { RuntimeResponse } from "@/lib/types";
@@ -26,6 +26,8 @@ export function RuntimeEditor() {
 function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [voice, setVoice] = useState(initial.voice_enabled);
   const [rolesEnabled, setRolesEnabled] = useState(initial.user_roles_enabled);
+  const [paused, setPaused] = useState(initial.generation_paused);
+  const [maxTokens, setMaxTokens] = useState<string>(String(initial.max_tokens));
   const [disabled, setDisabled] = useState<Set<string>>(
     new Set(initial.disabled_models),
   );
@@ -44,14 +46,21 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   async function save() {
     setStatus("saving");
     setMessage("");
+    // Clamp to a non-negative integer; blank/invalid falls back to 0 (default).
+    const parsed = Math.max(0, Math.floor(Number(maxTokens)));
+    const tokens = Number.isFinite(parsed) ? parsed : 0;
     try {
       const res = await api.setRuntime({
         voice_enabled: voice,
         disabled_models: Array.from(disabled),
         user_roles_enabled: rolesEnabled,
+        generation_paused: paused,
+        max_tokens: tokens,
       });
       setVoice(res.voice_enabled);
       setRolesEnabled(res.user_roles_enabled);
+      setPaused(res.generation_paused);
+      setMaxTokens(String(res.max_tokens));
       setDisabled(new Set(res.disabled_models));
       setStatus("saved");
       setMessage("Saved");
@@ -70,7 +79,35 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
     <Card>
       <SectionTitle icon={SlidersHorizontal}>Runtime</SectionTitle>
 
-      <div className="flex items-center gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
+      <div
+        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+          paused
+            ? "border-red-500/30 bg-red-500/5"
+            : "border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40"
+        }`}
+      >
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+            paused ? "bg-red-500/15 text-red-500" : "bg-tg-button/10 text-tg-button"
+          }`}
+        >
+          <PauseCircle className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Pause bot</p>
+          <p className="text-xs text-tg-hint">
+            Kill-switch — stops generating replies for everyone.
+          </p>
+        </div>
+        <Toggle checked={paused} onChange={setPaused} label="Pause bot" />
+      </div>
+      {paused && (
+        <p className="mt-1.5 text-xs font-medium text-red-500">
+          Bot is paused — users get a maintenance message
+        </p>
+      )}
+
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-tg-button/10 text-tg-button">
           <Mic className="h-4 w-4" aria-hidden />
         </span>
@@ -98,6 +135,28 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
           onChange={setRolesEnabled}
           label="Allow personal roles"
         />
+      </div>
+
+      <div className="mt-2 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Max tokens per reply</p>
+            <p className="text-xs text-tg-hint">
+              Caps response length to control cost. 0 = provider default.
+            </p>
+          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1}
+            value={maxTokens}
+            onChange={(e) => setMaxTokens(e.target.value)}
+            aria-label="Max tokens per reply"
+            placeholder="0"
+            className="w-24 rounded-lg border border-black/[0.08] dark:border-white/[0.12] bg-tg-bg px-2.5 py-1.5 text-right text-sm text-tg-text outline-none focus:border-tg-button"
+          />
+        </div>
       </div>
 
       <p className="mb-2 mt-4 text-xs font-medium text-tg-hint">

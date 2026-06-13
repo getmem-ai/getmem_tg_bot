@@ -217,6 +217,8 @@ class AdminUser(BaseModel):
     is_premium: bool
     premium_until: dt.datetime | None
     banned: bool
+    is_admin: bool
+    env_admin: bool  # admin via ADMIN_IDS — can't be revoked from the UI
     limit_override: int | None
     used_today: int
     daily_limit: int
@@ -235,6 +237,7 @@ class AdminUsersOut(BaseModel):
 class AdminUserUpdate(BaseModel):
     # Only fields explicitly present are applied (null is a meaningful value).
     banned: bool | None = None
+    is_admin: bool | None = None
     limit_override: int | None = None
     tier: str | None = None
     reset_usage: bool | None = None

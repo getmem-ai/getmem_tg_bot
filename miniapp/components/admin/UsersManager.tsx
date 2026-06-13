@@ -8,6 +8,8 @@ import {
   RotateCcw,
   Save,
   Search,
+  Shield,
+  ShieldCheck,
   Trash2,
   Users,
 } from "lucide-react";
@@ -243,6 +245,11 @@ function UserCard({
           <span className="rounded-md bg-tg-button/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-tg-button">
             {tierName}
           </span>
+          {user.is_admin && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-tg-button/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-tg-button">
+              <ShieldCheck className="h-3 w-3" aria-hidden /> Admin
+            </span>
+          )}
           {user.banned && (
             <span className="rounded-md bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-500">
               Banned
@@ -338,6 +345,41 @@ function UserActions({
           >
             <Ban className="h-4 w-4" aria-hidden />
             Ban
+          </button>
+        )}
+      </div>
+
+      {/* Admin rights */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <span className="text-sm font-medium text-tg-text">Admin rights</span>
+          {user.env_admin && (
+            <p className="text-[11px] text-tg-hint">Via ADMIN_IDS — permanent</p>
+          )}
+        </div>
+        {user.env_admin ? (
+          <span className="inline-flex items-center gap-1 rounded-xl bg-tg-button/12 px-3 py-1.5 text-xs font-semibold text-tg-button">
+            <ShieldCheck className="h-4 w-4" aria-hidden /> Admin
+          </span>
+        ) : user.is_admin ? (
+          <Button
+            onClick={() => apply({ is_admin: false }, "Admin revoked")}
+            disabled={saving}
+            variant="secondary"
+            size="sm"
+            icon={Shield}
+          >
+            Revoke
+          </Button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => apply({ is_admin: true }, "Admin granted")}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl bg-tg-button px-3 py-1.5 text-xs font-semibold text-tg-button-text transition active:opacity-80 disabled:opacity-50"
+          >
+            <ShieldCheck className="h-4 w-4" aria-hidden />
+            Make admin
           </button>
         )}
       </div>

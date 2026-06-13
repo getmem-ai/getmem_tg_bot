@@ -59,6 +59,10 @@ class User(Base):
         Boolean, default=False, server_default=sa_false()
     )
     limit_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Grantable admin rights (in addition to env ADMIN_IDS, which are permanent).
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa_false()
+    )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )

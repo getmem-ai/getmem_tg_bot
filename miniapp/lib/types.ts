@@ -117,6 +117,8 @@ export interface AdminUser {
   is_premium: boolean;
   premium_until: string | null;
   banned: boolean;
+  is_admin: boolean;
+  env_admin: boolean; // admin via env ADMIN_IDS — can't be revoked in the UI
   limit_override: number | null;
   used_today: number;
   daily_limit: number;
@@ -134,6 +136,7 @@ export interface AdminUsersResponse {
 
 export interface AdminUserUpdate {
   banned?: boolean;
+  is_admin?: boolean; // grant/revoke admin rights
   limit_override?: number | null; // null clears the override
   tier?: string; // tier key; "free" downgrades; paid key grants for its period
   reset_usage?: boolean; // true → reset today's counter
@@ -153,12 +156,16 @@ export interface RuntimeResponse {
   disabled_models: string[];
   all_models: ModelSpec[];
   user_roles_enabled: boolean;
+  generation_paused: boolean;
+  max_tokens: number;
 }
 
 export interface RuntimeUpdate {
   voice_enabled?: boolean;
   disabled_models?: string[];
   user_roles_enabled?: boolean;
+  generation_paused?: boolean;
+  max_tokens?: number;
 }
 
 export interface ProviderConfig {
@@ -203,4 +210,25 @@ export interface TierUpdate {
   price_stars: number;
   period_days: number;
   models: Array<{ provider: Provider; id: string }>;
+}
+
+export interface DayCount {
+  day: string;
+  count: number;
+}
+
+export interface ModelCount {
+  model: string;
+  count: number;
+}
+
+export interface AnalyticsResponse {
+  messages: DayCount[];
+  new_users: DayCount[];
+  model_mix: ModelCount[];
+  revenue_stars: number;
+}
+
+export interface BroadcastResponse {
+  queued: number;
 }

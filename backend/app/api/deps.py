@@ -9,8 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Settings
 from ..core import ConfigStore
-from ..db import Database
+from ..db import Database, repo
 from .auth import InitDataError, TelegramUser, parse_auth_header, validate_init_data
+
+
+async def is_admin(session: AsyncSession, settings: Settings, user_id: int) -> bool:
+    """Admin = listed in env ADMIN_IDS (permanent) OR granted the DB flag."""
+    return settings.is_admin(user_id) or await repo.is_db_admin(session, user_id)
 
 
 def get_settings(request: Request) -> Settings:
@@ -52,11 +57,12 @@ def current_user(
         ) from exc
 
 
-def require_admin(
+async def require_admin(
     user: TelegramUser = Depends(current_user),
     settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(db_session),
 ) -> TelegramUser:
-    if not settings.is_admin(user.id):
+    if not await is_admin(session, settings, user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Admins only"
         )
