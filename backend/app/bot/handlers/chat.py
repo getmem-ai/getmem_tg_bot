@@ -30,6 +30,29 @@ router = Router(name="chat")
 log = logging.getLogger(__name__)
 
 _TG_LIMIT = 4096  # Telegram hard-caps message text at 4096 chars.
+_HINT_DELAY = 4.0  # seconds before the "go Premium" nudge appears on Thinking…
+
+
+async def _thinking_hint(placeholder: Message) -> None:
+    """After a short delay, append an italic upsell to the Thinking… message."""
+    try:
+        await asyncio.sleep(_HINT_DELAY)
+        await placeholder.edit_text(texts.THINKING_UPSELL)
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 - the nudge is best-effort, never fatal
+        pass
+
+
+async def _cancel(task: "asyncio.Task[None] | None") -> None:
+    """Cancel the hint task and wait for it, so edits stay correctly ordered."""
+    if task is None:
+        return
+    task.cancel()
+    try:
+        await task
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        pass
 
 
 @router.message(F.text & ~F.text.startswith("/"))
@@ -107,6 +130,14 @@ async def respond(
     placeholder = await message.answer(texts.THINKING)
     timeout = service.settings.reply_timeout
 
+    # If generation takes a while, append an italic "go Premium for faster
+    # replies" nudge to the placeholder — but only for free users who actually
+    # have a paid plan to upgrade to.
+    show_hint = not is_premium and bool(await config.paid_tiers())
+    hint_task = (
+        asyncio.create_task(_thinking_hint(placeholder)) if show_hint else None
+    )
+
     try:
         async with ChatActionSender(
             bot=message.bot, chat_id=message.chat.id, action=ChatAction.TYPING
@@ -116,13 +147,17 @@ async def respond(
             )
     except (LLMError, asyncio.TimeoutError) as exc:
         # No model answered in time / all busy — nudge free users to upgrade.
+        await _cancel(hint_task)
         log.warning("generation unavailable for tg=%s: %r", tg.id, exc)
         await _safe_edit(placeholder, texts.all_busy(is_premium))
         return
     except Exception:  # noqa: BLE001 - never leave the user hanging
+        await _cancel(hint_task)
         log.exception("unexpected error generating reply for tg=%s", tg.id)
         await _safe_edit(placeholder, texts.ERROR_GENERIC)
         return
+
+    await _cancel(hint_task)
 
     # The model replies in Markdown; render it to Telegram-safe HTML.
     html_text = to_telegram_html(completion.text)

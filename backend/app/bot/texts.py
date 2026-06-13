@@ -143,6 +143,11 @@ def forget_done(count: int) -> str:
 
 FORGET_CANCEL = "Cancelled — your memory is safe."
 THINKING = "💭 Thinking…"
+# Shown if generation is slow — a gentle italic nudge for free users.
+THINKING_UPSELL = (
+    "💭 Thinking…\n\n"
+    "<i>Tip: Premium plans use faster, more reliable models — /upgrade ⭐</i>"
+)
 ERROR_GENERIC = (
     "😕 Something went wrong on my side. Please try again in a moment."
 )
