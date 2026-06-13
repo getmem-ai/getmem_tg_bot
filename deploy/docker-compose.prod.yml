@@ -1,0 +1,57 @@
+# Production deployment with a public domain + automatic HTTPS.
+#
+# This runs the bot in WEBHOOK mode behind Caddy, which obtains and renews a
+# Let's Encrypt TLS certificate for your domain automatically — no certbot, no
+# manual cert files.
+#
+# Prerequisites:
+#   • A domain (e.g. bot.example.com) whose A record points at this server.
+#   • Ports 80 and 443 open to the internet.
+#   • .env filled in, including:
+#         WEBHOOK_URL=https://bot.example.com
+#         WEBHOOK_SECRET=<a long random string>
+#         DOMAIN=bot.example.com          # used by Caddy below
+#         ACME_EMAIL=you@example.com      # Let's Encrypt contact
+#
+# Run from the repo root:
+#   docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+#
+services:
+  bot:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: getmem-telegram-bot:latest
+    container_name: getmem-bot
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      # Bind the in-container web server; Caddy proxies to it.
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8080
+    volumes:
+      - bot-data:/app/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: getmem-caddy
+    restart: unless-stopped
+    depends_on:
+      - bot
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  bot-data:
+  caddy-data:
+  caddy-config:

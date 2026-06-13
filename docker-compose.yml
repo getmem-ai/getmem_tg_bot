@@ -1,0 +1,16 @@
+# Default deployment: long polling. No domain, no open ports, no TLS required.
+# 1. cp .env.example .env  &&  edit .env
+# 2. docker compose up -d --build
+services:
+  bot:
+    build: .
+    image: getmem-telegram-bot:latest
+    container_name: getmem-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bot-data:/app/data
+    # Long polling makes outbound connections only — nothing to expose.
+
+volumes:
+  bot-data:

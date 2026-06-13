@@ -1,0 +1,19 @@
+# Caddy automatically provisions and renews a Let's Encrypt certificate for
+# {$DOMAIN} and reverse-proxies Telegram's webhook calls to the bot container.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Telegram delivers updates to /webhook (see WEBHOOK_PATH). Proxy to the bot.
+	reverse_proxy bot:8080
+
+	# Basic hardening headers.
+	header {
+		Strict-Transport-Security "max-age=31536000;"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
