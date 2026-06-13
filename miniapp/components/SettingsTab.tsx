@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import type { MeResponse } from "@/lib/types";
 import { PageHeader } from "./Card";
 import { ModelPicker } from "./ModelPicker";
+import { RoleEditor } from "./RoleEditor";
 import { UpgradeCard } from "./UpgradeCard";
 
 interface SettingsTabProps {
@@ -20,6 +21,10 @@ export function SettingsTab({ me, onModelChange, onReload }: SettingsTabProps) {
         subtitle="Personalize your assistant"
         icon={Settings}
       />
+
+      {me.user_roles_enabled && (
+        <RoleEditor role={me.user.role} onSaved={onReload} />
+      )}
 
       <ModelPicker
         available={me.available_models}

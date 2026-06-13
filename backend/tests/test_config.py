@@ -34,6 +34,29 @@ async def test_runtime_defaults(settings: Settings) -> None:
     config = ConfigStore(None, settings)
     assert await config.voice_enabled() == settings.enable_voice
     assert await config.disabled_models() == set()
+    # Personal roles are enabled by default.
+    assert await config.user_roles_enabled() is True
+
+
+def test_context_builder_injects_role() -> None:
+    msgs = ContextBuilder.build(
+        system_prompt="Persona",
+        user_role="You are my English teacher.",
+        memory_context="",
+        history=[],
+        user_text="hi",
+    )
+    dynamic = msgs[1]["content"]
+    assert msgs[1]["role"] == "system"
+    assert "English teacher" in dynamic
+
+
+def test_context_builder_capabilities_in_persona() -> None:
+    msgs = ContextBuilder.build(
+        system_prompt="P", memory_context="", history=[], user_text="hi"
+    )
+    # Capabilities/formatting guidance lives in the cache-friendly persona msg.
+    assert "long-term memory" in msgs[0]["content"]
 
 
 def test_model_label() -> None:

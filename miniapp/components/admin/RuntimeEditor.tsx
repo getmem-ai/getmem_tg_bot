@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mic, Save, SlidersHorizontal } from "lucide-react";
+import { Drama, Mic, Save, SlidersHorizontal } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { RuntimeResponse } from "@/lib/types";
@@ -25,6 +25,7 @@ export function RuntimeEditor() {
 
 function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [voice, setVoice] = useState(initial.voice_enabled);
+  const [rolesEnabled, setRolesEnabled] = useState(initial.user_roles_enabled);
   const [disabled, setDisabled] = useState<Set<string>>(
     new Set(initial.disabled_models),
   );
@@ -47,8 +48,10 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       const res = await api.setRuntime({
         voice_enabled: voice,
         disabled_models: Array.from(disabled),
+        user_roles_enabled: rolesEnabled,
       });
       setVoice(res.voice_enabled);
+      setRolesEnabled(res.user_roles_enabled);
       setDisabled(new Set(res.disabled_models));
       setStatus("saved");
       setMessage("Saved");
@@ -78,6 +81,23 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
           </p>
         </div>
         <Toggle checked={voice} onChange={setVoice} label="Voice transcription" />
+      </div>
+
+      <div className="mt-2 flex items-center gap-3 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-tg-bg/40 px-3 py-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-tg-button/10 text-tg-button">
+          <Drama className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Allow users to set a personal role</p>
+          <p className="text-xs text-tg-hint">
+            Let users define their own assistant role in Settings.
+          </p>
+        </div>
+        <Toggle
+          checked={rolesEnabled}
+          onChange={setRolesEnabled}
+          label="Allow personal roles"
+        />
       </div>
 
       <p className="mb-2 mt-4 text-xs font-medium text-tg-hint">

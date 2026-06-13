@@ -1,7 +1,18 @@
-import { Fragment } from "react";
-import { Bot, MessageSquare, User as UserIcon } from "lucide-react";
+"use client";
+
+import { Fragment, useMemo, useState } from "react";
+import {
+  Bot,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  MessageSquare,
+  User as UserIcon,
+} from "lucide-react";
 import type { ActivityItem } from "@/lib/types";
 import { dayLabel, relativeTime, shortModel } from "@/lib/format";
+import { haptic } from "@/lib/telegram";
 import { EmptyState } from "./ui";
 
 interface ActivityListProps {
@@ -12,6 +23,10 @@ interface DayGroup {
   label: string;
   items: ActivityItem[];
 }
+
+// Thresholds beyond which a message is collapsed by default.
+const MAX_CHARS = 320;
+const MAX_LINES = 8;
 
 /** Buckets items into contiguous day groups, preserving incoming order. */
 function groupByDay(items: ActivityItem[]): DayGroup[] {
@@ -38,9 +53,55 @@ function DayHeader({ label }: { label: string }) {
   );
 }
 
+/** Returns the collapsed preview of long content (first ~8 lines / 320 chars). */
+function collapse(content: string): string {
+  const byLines = content.split("\n").slice(0, MAX_LINES).join("\n");
+  const clipped = byLines.length > MAX_CHARS ? byLines.slice(0, MAX_CHARS) : byLines;
+  return `${clipped.trimEnd()}…`;
+}
+
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    haptic("light");
+    try {
+      await navigator.clipboard?.writeText(content);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (or denied): degrade gracefully.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? "Copied" : "Copy message"}
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-tg-hint transition active:bg-black/[0.04] dark:active:bg-white/[0.06]"
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-green-500" aria-hidden />
+      ) : (
+        <Copy className="h-3 w-3" aria-hidden />
+      )}
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
 function MessageBubble({ item }: { item: ActivityItem }) {
   const isAssistant = item.role === "assistant";
   const Icon = isAssistant ? Bot : UserIcon;
+
+  const isLong = useMemo(
+    () => item.content.length > MAX_CHARS || item.content.split("\n").length > MAX_LINES,
+    [item.content],
+  );
+  const [expanded, setExpanded] = useState(false);
+
+  const display = isLong && !expanded ? collapse(item.content) : item.content;
 
   return (
     <div className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}>
@@ -73,13 +134,45 @@ function MessageBubble({ item }: { item: ActivityItem }) {
         }`}
       >
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-tg-text [overflow-wrap:anywhere]">
-          {item.content}
+          {display}
         </p>
-        {isAssistant && item.model && (
-          <span className="mt-1.5 inline-flex max-w-full items-center rounded-md bg-tg-hint/10 px-1.5 py-0.5 text-[10px] font-medium text-tg-hint">
-            <span className="truncate">{shortModel(item.model)}</span>
-          </span>
+
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => {
+              haptic("light");
+              setExpanded((e) => !e);
+            }}
+            className="mt-1.5 inline-flex items-center gap-0.5 text-[11px] font-medium text-tg-button transition active:opacity-70"
+          >
+            {expanded ? (
+              <>
+                Show less
+                <ChevronUp className="h-3 w-3" aria-hidden />
+              </>
+            ) : (
+              <>
+                Show more
+                <ChevronDown className="h-3 w-3" aria-hidden />
+              </>
+            )}
+          </button>
         )}
+
+        {/* Footer: model badge (assistant) + copy control */}
+        <div
+          className={`mt-1.5 flex items-center gap-2 ${
+            isAssistant ? "justify-between" : "justify-end"
+          }`}
+        >
+          {isAssistant && item.model ? (
+            <span className="inline-flex min-w-0 items-center rounded-md bg-tg-hint/10 px-1.5 py-0.5 text-[10px] font-medium text-tg-hint">
+              <span className="truncate">{shortModel(item.model)}</span>
+            </span>
+          ) : null}
+          <CopyButton content={item.content} />
+        </div>
       </div>
     </div>
   );

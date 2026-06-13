@@ -5,6 +5,9 @@ import { getInitData } from "./telegram";
 import type {
   ActivityResponse,
   AdminStatsResponse,
+  AdminUser,
+  AdminUsersResponse,
+  AdminUserUpdate,
   HealthResponse,
   InvoiceResponse,
   MeResponse,
@@ -15,6 +18,7 @@ import type {
   RuntimeResponse,
   RuntimeUpdate,
   SetModelResponse,
+  SetRoleResponse,
   TiersResponse,
   TierUpdate,
   UsageSeriesResponse,
@@ -89,6 +93,8 @@ export const api = {
   me: () => request<MeResponse>("/me"),
   setModel: (model: string | null) =>
     putJson<SetModelResponse>("/me/model", { model }),
+  setRole: (role: string | null) =>
+    putJson<SetRoleResponse>("/me/role", { role }),
   createInvoice: (tier_key: string) =>
     request<InvoiceResponse>("/me/invoice", {
       method: "POST",
@@ -115,6 +121,18 @@ export const api = {
   getProviders: () => request<ProvidersResponse>("/admin/providers"),
   setProvider: (update: ProviderUpdate) =>
     putJson<ProviderConfig>("/admin/providers", update),
+
+  // ---- Admin: users ----
+  adminListUsers: (params?: { search?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set("search", params.search);
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    if (params?.offset != null) qs.set("offset", String(params.offset));
+    const query = qs.toString();
+    return request<AdminUsersResponse>(`/admin/users${query ? `?${query}` : ""}`);
+  },
+  adminUpdateUser: (id: number, update: AdminUserUpdate) =>
+    putJson<AdminUser>(`/admin/users/${id}`, update),
 
   // ---- Admin: tiers ----
   getTiers: () => request<TiersResponse>("/admin/tiers"),

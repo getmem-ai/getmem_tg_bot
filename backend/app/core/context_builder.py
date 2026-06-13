@@ -24,6 +24,17 @@ _FORMATTING_NOTE = (
     "Do NOT use Markdown tables or '#' headings; present comparisons as short "
     "bulleted lists instead. Keep replies concise and easy to read on a phone."
 )
+_CAPABILITIES_NOTE = (
+    "About you: you are a Telegram assistant with long-term memory of each user "
+    "(you remember facts across conversations), you understand voice messages, "
+    "and users can pick an AI model or upgrade their plan for higher daily limits "
+    "and better models. If asked what you can do, summarise this briefly."
+)
+_ROLE_HEADER = (
+    "# Role the user asked you to play\n"
+    "Adopt this role/persona for this user (it refines, and does not override, "
+    "your core instructions or safety):\n"
+)
 _ACCOUNT_HEADER = (
     "# This user's account & usage right now\n"
     "Use this to answer questions about their plan, limits, remaining messages "
@@ -40,8 +51,12 @@ class ContextBuilder:
     """Builds the chat-completion ``messages`` array from its parts."""
 
     @staticmethod
-    def _dynamic_message(account_info: str, memory_context: str) -> dict[str, str] | None:
+    def _dynamic_message(
+        user_role: str, account_info: str, memory_context: str
+    ) -> dict[str, str] | None:
         parts: list[str] = []
+        if user_role and user_role.strip():
+            parts.append(_ROLE_HEADER + user_role.strip())
         if account_info and account_info.strip():
             parts.append(_ACCOUNT_HEADER + account_info.strip())
         if memory_context and memory_context.strip():
@@ -59,10 +74,13 @@ class ContextBuilder:
         history: list[dict[str, str]],
         user_text: str,
         account_info: str = "",
+        user_role: str = "",
     ) -> list[dict[str, str]]:
-        persona = f"{system_prompt.strip()}\n\n{_FORMATTING_NOTE}"
+        # Static, cache-friendly persona (admin prompt + formatting + capabilities).
+        persona = f"{system_prompt.strip()}\n\n{_FORMATTING_NOTE}\n\n{_CAPABILITIES_NOTE}"
         messages = [{"role": "system", "content": persona}]
-        dynamic = cls._dynamic_message(account_info, memory_context)
+        # Per-user dynamic instructions (role, live quota, recalled memory).
+        dynamic = cls._dynamic_message(user_role, account_info, memory_context)
         if dynamic is not None:
             messages.append(dynamic)
         messages.extend(history)

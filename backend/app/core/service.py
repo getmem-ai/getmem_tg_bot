@@ -98,19 +98,23 @@ class ChatService:
             )
             used_today = await repo.used_today(session, tg_id)
 
-        # 3. Live config: persona, tier and account snapshot.
+        # 3. Live config: persona, tier, account snapshot and (optional) role.
         system_prompt = await self.config.system_prompt()
         tier = await self.config.tier_for_user(user)
         account = _account_summary(tier, used_today, user.premium_until)
+        user_role = ""
+        if user.role and await self.config.user_roles_enabled():
+            user_role = user.role
 
         # 4. Build the prompt (persona stays its own message so it stays
-        #    cache-friendly; account + memory go in a separate dynamic message).
+        #    cache-friendly; role + account + memory go in a dynamic message).
         messages = ContextBuilder.build(
             system_prompt=system_prompt,
             account_info=account,
             memory_context=context,
             history=history,
             user_text=user_text,
+            user_role=user_role,
         )
         completion = await self.router.complete(
             messages, await self.resolve_pool(user, tier)

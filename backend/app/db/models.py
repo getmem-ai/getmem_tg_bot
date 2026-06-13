@@ -13,7 +13,18 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    false as sa_false,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -32,9 +43,18 @@ class User(Base):
     first_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     tier: Mapped[str] = mapped_column(String(16), default="free", server_default="free")
     preferred_model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Optional user-defined role appended to the system instructions for this
+    # user's chats (e.g. "You are my English teacher"). Admin-gateable.
+    role: Mapped[str | None] = mapped_column(Text, nullable=True)
     premium_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Admin moderation: blocked users get no replies; limit_override replaces the
+    # tier's daily limit for this user when set.
+    banned: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa_false()
+    )
+    limit_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, server_default=func.now()
     )

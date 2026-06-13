@@ -134,6 +134,20 @@ class ConfigStore:
                     session, repo.VOICE_ENABLED_KEY, "true" if on else "false"
                 )
 
+    async def user_roles_enabled(self) -> bool:
+        """Whether users may set a personal role (default: enabled)."""
+        stored = await self._get_str(repo.USER_ROLES_KEY)
+        if stored is None:
+            return True
+        return stored == "true"
+
+    async def set_user_roles_enabled(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.USER_ROLES_KEY, "true" if on else "false"
+                )
+
     async def disabled_models(self) -> set[str]:
         data = await self._get_json(repo.DISABLED_MODELS_KEY)
         return set(data) if isinstance(data, list) else set()

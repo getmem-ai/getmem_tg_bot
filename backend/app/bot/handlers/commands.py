@@ -73,13 +73,15 @@ async def cmd_me(
         )
         used = await repo.used_today(session, tg.id)
         is_premium = user.is_premium
+        override = user.limit_override
         model = user.preferred_model or "🔄 auto"
         premium_until = (
             user.premium_until.strftime("%Y-%m-%d")
             if is_premium and user.premium_until
             else None
         )
-    limit = (await config.tier_for_user(user)).daily_limit
+    tier_cfg = await config.tier_for_user(user)
+    limit = override if override is not None else tier_cfg.daily_limit
     await message.answer(
         texts.me(
             tier="premium" if is_premium else "free",

@@ -22,6 +22,7 @@ VOICE_ENABLED_KEY = "voice_enabled"
 DISABLED_MODELS_KEY = "disabled_models"
 PROVIDERS_KEY = "providers"
 TIERS_KEY = "tiers"
+USER_ROLES_KEY = "user_roles_enabled"
 
 
 def _utcnow() -> dt.datetime:
@@ -65,6 +66,11 @@ async def set_preferred_model(
 ) -> None:
     user = await get_or_create_user(session, user_id)
     user.preferred_model = model
+
+
+async def set_role(session: AsyncSession, user_id: int, role: str | None) -> None:
+    user = await get_or_create_user(session, user_id)
+    user.role = role
 
 
 async def set_tier(
@@ -233,6 +239,53 @@ async def recent_users(session: AsyncSession, limit: int = 10) -> list[User]:
         select(User).order_by(User.created_at.desc()).limit(limit)
     )
     return list(rows.scalars().all())
+
+
+# -- admin user management ---------------------------------------------------
+
+
+async def list_users(
+    session: AsyncSession,
+    *,
+    search: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[User], int]:
+    limit = max(1, min(limit, 100))
+    base = select(User)
+    count_q = select(func.count()).select_from(User)
+    if search and search.strip():
+        s = search.strip()
+        cond = User.username.ilike(f"%{s}%") | User.first_name.ilike(f"%{s}%")
+        if s.lstrip("-").isdigit():
+            cond = cond | (User.id == int(s))
+        base = base.where(cond)
+        count_q = count_q.where(cond)
+    total = int(await session.scalar(count_q) or 0)
+    rows = await session.execute(
+        base.order_by(User.created_at.desc()).limit(limit).offset(max(0, offset))
+    )
+    return list(rows.scalars().all()), total
+
+
+async def set_banned(session: AsyncSession, user_id: int, banned: bool) -> None:
+    user = await get_or_create_user(session, user_id)
+    user.banned = banned
+
+
+async def set_limit_override(
+    session: AsyncSession, user_id: int, value: int | None
+) -> None:
+    user = await get_or_create_user(session, user_id)
+    user.limit_override = value if (value is None or value >= 0) else None
+
+
+async def reset_today_usage(session: AsyncSession, user_id: int) -> None:
+    await session.execute(
+        delete(DailyUsage).where(
+            DailyUsage.user_id == user_id, DailyUsage.day == _today()
+        )
+    )
 
 
 # -- app settings (key-value) ------------------------------------------------

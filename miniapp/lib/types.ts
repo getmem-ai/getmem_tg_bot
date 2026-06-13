@@ -18,6 +18,7 @@ export interface User {
   is_premium: boolean;
   premium_until: string | null;
   preferred_model: string | null;
+  role: string | null;
   created_at: string;
 }
 
@@ -55,10 +56,15 @@ export interface MeResponse {
   tier: TierInfo;
   available_models: ModelSpec[];
   upgrade_tiers: UpgradeTier[];
+  user_roles_enabled: boolean;
 }
 
 export interface SetModelResponse {
   preferred_model: string | null;
+}
+
+export interface SetRoleResponse {
+  role: string | null;
 }
 
 export interface InvoiceResponse {
@@ -101,6 +107,36 @@ export interface AdminStatsResponse {
   recent_users: RecentUser[];
 }
 
+export interface AdminUser {
+  id: number;
+  first_name: string | null;
+  username: string | null;
+  tier: string;
+  is_premium: boolean;
+  premium_until: string | null;
+  banned: boolean;
+  limit_override: number | null;
+  used_today: number;
+  daily_limit: number;
+  messages: number;
+  payments: number;
+  created_at: string;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminUserUpdate {
+  banned?: boolean;
+  limit_override?: number | null; // null clears the override
+  tier?: string; // tier key; "free" downgrades; paid key grants for its period
+  reset_usage?: boolean; // true → reset today's counter
+}
+
 export interface HealthResponse {
   status: string;
 }
@@ -114,11 +150,13 @@ export interface RuntimeResponse {
   voice_enabled: boolean;
   disabled_models: string[];
   all_models: ModelSpec[];
+  user_roles_enabled: boolean;
 }
 
 export interface RuntimeUpdate {
   voice_enabled?: boolean;
   disabled_models?: string[];
+  user_roles_enabled?: boolean;
 }
 
 export interface ProviderConfig {

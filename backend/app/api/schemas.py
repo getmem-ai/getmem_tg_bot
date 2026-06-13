@@ -18,6 +18,8 @@ class UserOut(BaseModel):
     is_premium: bool
     premium_until: dt.datetime | None
     preferred_model: str | None
+    role: str | None
+    banned: bool = False
     created_at: dt.datetime
 
 
@@ -61,6 +63,15 @@ class MeOut(BaseModel):
     tier: TierInfo
     available_models: list[ModelSpecOut]
     upgrade_tiers: list[UpgradeTier]
+    user_roles_enabled: bool
+
+
+class RoleIn(BaseModel):
+    role: str | None = None
+
+
+class RoleOut(BaseModel):
+    role: str | None
 
 
 class InvoiceIn(BaseModel):
@@ -83,11 +94,13 @@ class RuntimeOut(BaseModel):
     voice_enabled: bool
     disabled_models: list[str]
     all_models: list[ModelSpecOut]
+    user_roles_enabled: bool
 
 
 class RuntimeIn(BaseModel):
     voice_enabled: bool | None = None
     disabled_models: list[str] | None = None
+    user_roles_enabled: bool | None = None
 
 
 class ProviderOut(BaseModel):
@@ -186,6 +199,37 @@ class PromptOut(BaseModel):
 
 class PromptIn(BaseModel):
     system_prompt: str
+
+
+class AdminUser(BaseModel):
+    id: int
+    first_name: str | None
+    username: str | None
+    tier: str
+    is_premium: bool
+    premium_until: dt.datetime | None
+    banned: bool
+    limit_override: int | None
+    used_today: int
+    daily_limit: int
+    messages: int
+    payments: int
+    created_at: dt.datetime
+
+
+class AdminUsersOut(BaseModel):
+    users: list[AdminUser]
+    total: int
+    limit: int
+    offset: int
+
+
+class AdminUserUpdate(BaseModel):
+    # Only fields explicitly present are applied (null is a meaningful value).
+    banned: bool | None = None
+    limit_override: int | None = None
+    tier: str | None = None
+    reset_usage: bool | None = None
 
 
 class HealthOut(BaseModel):

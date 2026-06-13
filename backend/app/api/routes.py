@@ -7,6 +7,8 @@ be in ``ADMIN_IDS``. Editable config is read/written via the ConfigStore.
 
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +29,9 @@ from .schemas import (
     ActivityItem,
     ActivityOut,
     AdminStatsOut,
+    AdminUser,
+    AdminUsersOut,
+    AdminUserUpdate,
     HealthOut,
     InvoiceIn,
     InvoiceOut,
@@ -34,6 +39,8 @@ from .schemas import (
     ModelSpecOut,
     PromptIn,
     PromptOut,
+    RoleIn,
+    RoleOut,
     ProviderIn,
     ProviderOut,
     ProvidersOut,
@@ -88,6 +95,11 @@ async def me(
         session, user.id, username=user.username, first_name=user.first_name
     )
     tier = await config.tier_for_user(db_user)
+    limit = (
+        db_user.limit_override
+        if db_user.limit_override is not None
+        else tier.daily_limit
+    )
     used = await repo.used_today(session, user.id)
     messages = await repo.message_count(session, user.id)
     payments = await repo.payment_count(session, user.id)
@@ -101,12 +113,14 @@ async def me(
             is_premium=db_user.is_premium,
             premium_until=db_user.premium_until,
             preferred_model=db_user.preferred_model,
+            role=db_user.role,
+            banned=db_user.banned,
             created_at=db_user.created_at,
         ),
         usage=UsageOut(
             used_today=used,
-            limit=tier.daily_limit,
-            remaining=max(0, tier.daily_limit - used),
+            limit=limit,
+            remaining=max(0, limit - used),
         ),
         totals=TotalsOut(messages=messages, payments=payments),
         is_admin=settings.is_admin(user.id),
@@ -124,7 +138,25 @@ async def me(
             for t in paid
             if t.key != db_user.tier  # don't offer the tier they're already on
         ],
+        user_roles_enabled=await config.user_roles_enabled(),
     )
+
+
+@router.put("/me/role", response_model=RoleOut)
+async def set_my_role(
+    body: RoleIn,
+    user: TelegramUser = Depends(current_user),
+    config: ConfigStore = Depends(get_config),
+    session: AsyncSession = Depends(db_session),
+) -> RoleOut:
+    if not await config.user_roles_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Personal roles are disabled by the operator.",
+        )
+    role = (body.role or "").strip()[:1000] or None
+    await repo.set_role(session, user.id, role)
+    return RoleOut(role=role)
 
 
 @router.post("/me/invoice", response_model=InvoiceOut)
@@ -252,6 +284,7 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         voice_enabled=await config.voice_enabled(),
         disabled_models=sorted(await config.disabled_models()),
         all_models=[_spec_out(m) for m in seen.values()],
+        user_roles_enabled=await config.user_roles_enabled(),
     )
 
 
@@ -273,6 +306,8 @@ async def set_runtime(
         await config.set_voice_enabled(body.voice_enabled)
     if body.disabled_models is not None:
         await config.set_disabled_models(body.disabled_models)
+    if body.user_roles_enabled is not None:
+        await config.set_user_roles_enabled(body.user_roles_enabled)
     return await _runtime_out(config)
 
 
@@ -363,6 +398,83 @@ async def set_tiers(
     ]
     tiers = await config.set_tiers(payload)
     return TiersOut(tiers=[_tier_out(t) for t in tiers.values()])
+
+
+async def _admin_user(session, config: ConfigStore, u) -> AdminUser:  # type: ignore[no-untyped-def]
+    tier = await config.tier_for_user(u)
+    limit = u.limit_override if u.limit_override is not None else tier.daily_limit
+    return AdminUser(
+        id=u.id,
+        first_name=u.first_name,
+        username=u.username,
+        tier=u.tier,
+        is_premium=u.is_premium,
+        premium_until=u.premium_until,
+        banned=u.banned,
+        limit_override=u.limit_override,
+        used_today=await repo.used_today(session, u.id),
+        daily_limit=limit,
+        messages=await repo.message_count(session, u.id),
+        payments=await repo.payment_count(session, u.id),
+        created_at=u.created_at,
+    )
+
+
+@router.get("/admin/users", response_model=AdminUsersOut)
+async def admin_list_users(
+    search: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    _admin: TelegramUser = Depends(require_admin),
+    config: ConfigStore = Depends(get_config),
+    session: AsyncSession = Depends(db_session),
+) -> AdminUsersOut:
+    users, total = await repo.list_users(
+        session, search=search, limit=limit, offset=offset
+    )
+    return AdminUsersOut(
+        users=[await _admin_user(session, config, u) for u in users],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.put("/admin/users/{user_id}", response_model=AdminUser)
+async def admin_update_user(
+    user_id: int,
+    body: AdminUserUpdate,
+    _admin: TelegramUser = Depends(require_admin),
+    config: ConfigStore = Depends(get_config),
+    session: AsyncSession = Depends(db_session),
+) -> AdminUser:
+    fields = body.model_fields_set
+    user = await repo.get_or_create_user(session, user_id)
+
+    if "banned" in fields and body.banned is not None:
+        await repo.set_banned(session, user_id, body.banned)
+    if "limit_override" in fields:
+        await repo.set_limit_override(session, user_id, body.limit_override)
+    if "tier" in fields:
+        key = body.tier or "free"
+        tiers = await config.tiers()
+        if key not in tiers:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown tier."
+            )
+        if key == "free":
+            await repo.set_tier(session, user_id, "free", None)
+        else:
+            until = dt.datetime.now(dt.timezone.utc) + dt.timedelta(
+                days=tiers[key].period_days or 30
+            )
+            await repo.set_tier(session, user_id, key, until)
+    if "reset_usage" in fields and body.reset_usage:
+        await repo.reset_today_usage(session, user_id)
+
+    await session.flush()
+    user = await repo.get_user(session, user_id) or user
+    return await _admin_user(session, config, user)
 
 
 @router.get("/admin/stats", response_model=AdminStatsOut)

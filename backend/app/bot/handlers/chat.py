@@ -116,9 +116,17 @@ async def respond(
         )
         used = await repo.used_today(session, tg.id)
         is_premium = user.is_premium
+        banned = user.banned
+        override = user.limit_override
         user_obj = user
 
-    limit = (await config.tier_for_user(user_obj)).daily_limit
+    # Blocked/frozen by an admin — don't generate anything.
+    if banned:
+        await message.answer(texts.BANNED)
+        return
+
+    tier_cfg = await config.tier_for_user(user_obj)
+    limit = override if override is not None else tier_cfg.daily_limit
 
     if used >= limit:
         tier = "premium" if is_premium else "free"
