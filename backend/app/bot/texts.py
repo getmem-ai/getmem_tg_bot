@@ -239,6 +239,12 @@ def admin_model_toggled(model: str, enabled: bool) -> str:
 # -- Voice --------------------------------------------------------------------
 VOICE_DISABLED = "🎤 Voice messages aren't enabled on this bot."
 VISION_DISABLED = "🖼 Image understanding isn't enabled on this bot."
+VISION_PREMIUM = (
+    "🖼 Free models can't read images.\n\n"
+    "⭐ <b>Premium</b> unlocks image understanding (e.g. estimating calories from "
+    "a photo) — tap /upgrade.\n"
+    "<i>No request was used.</i>"
+)
 VOICE_EMPTY = "🤔 I couldn't make out any speech in that. Mind trying again?"
 
 

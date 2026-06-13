@@ -31,13 +31,25 @@ const PROVIDER_LABEL: Record<string, string> = {
   anthropic: "Anthropic",
 };
 
+/** Capitalised, human label for an arbitrary provider key. */
+function providerLabel(key: string): string {
+  return (
+    PROVIDER_LABEL[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
+  );
+}
+
+/** Composite key so the same model id under two providers stays distinct. */
+function modelKey(m: { provider: string; id: string }): string {
+  return `${m.provider}:${m.id}`;
+}
+
 interface DraftTier {
   key: string;
   name: string;
   daily_limit: number;
   price_stars: number;
   period_days: number;
-  selected: Set<string>; // model ids
+  selected: Set<string>; // composite "provider:id" keys
   isNew: boolean;
 }
 
@@ -65,7 +77,7 @@ function toDraft(t: TierConfig): DraftTier {
     daily_limit: t.daily_limit,
     price_stars: t.price_stars,
     period_days: t.period_days,
-    selected: new Set(t.models.map((m) => m.id)),
+    selected: new Set(t.models.map(modelKey)),
     isNew: false,
   };
 }
@@ -120,20 +132,34 @@ function TiersForm({
     for (const p of providers.providers) {
       if (!p.enabled) continue;
       for (const id of p.models) {
-        if (seen.has(id)) continue;
-        seen.add(id);
-        pool.push({ provider: p.kind, id, label: id.split("/").pop() ?? id });
+        const spec = { provider: p.kind, id, label: id.split("/").pop() ?? id };
+        const k = modelKey(spec);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        pool.push(spec);
       }
     }
     for (const t of initial) {
       for (const m of t.models) {
-        if (seen.has(m.id)) continue;
-        seen.add(m.id);
+        const k = modelKey(m);
+        if (seen.has(k)) continue;
+        seen.add(k);
         pool.push(m);
       }
     }
     return pool;
   }, [providers, initial]);
+
+  // Group the pool by provider for the chip picker.
+  const groupedPool: { provider: string; models: ModelSpec[] }[] = useMemo(() => {
+    const groups = new Map<string, ModelSpec[]>();
+    for (const m of modelPool) {
+      const list = groups.get(m.provider);
+      if (list) list.push(m);
+      else groups.set(m.provider, [m]);
+    }
+    return Array.from(groups, ([provider, models]) => ({ provider, models }));
+  }, [modelPool]);
 
   function update(key: string, patch: Partial<DraftTier>) {
     setDrafts((ds) =>
@@ -143,13 +169,13 @@ function TiersForm({
     setMessage("");
   }
 
-  function toggleModel(key: string, id: string) {
+  function toggleModel(key: string, mkey: string) {
     setDrafts((ds) =>
       ds.map((d) => {
         if (d.key !== key) return d;
         const next = new Set(d.selected);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
+        if (next.has(mkey)) next.delete(mkey);
+        else next.add(mkey);
         return { ...d, selected: next };
       }),
     );
@@ -195,7 +221,7 @@ function TiersForm({
         : d.key;
       taken.add(key);
       const models = modelPool
-        .filter((m) => d.selected.has(m.id))
+        .filter((m) => d.selected.has(modelKey(m)))
         .map((m) => ({ provider: m.provider as Provider, id: m.id }));
       return {
         key,
@@ -235,9 +261,10 @@ function TiersForm({
         <TierCard
           key={d.key}
           draft={d}
-          pool={modelPool}
+          groups={groupedPool}
+          poolSize={modelPool.length}
           onChange={(patch) => update(d.key, patch)}
-          onToggleModel={(id) => toggleModel(d.key, id)}
+          onToggleModel={(mkey) => toggleModel(d.key, mkey)}
           onDelete={() => removeTier(d.key)}
         />
       ))}
@@ -273,15 +300,17 @@ const numberFieldClass =
 
 function TierCard({
   draft,
-  pool,
+  groups,
+  poolSize,
   onChange,
   onToggleModel,
   onDelete,
 }: {
   draft: DraftTier;
-  pool: ModelSpec[];
+  groups: { provider: string; models: ModelSpec[] }[];
+  poolSize: number;
   onChange: (patch: Partial<DraftTier>) => void;
-  onToggleModel: (id: string) => void;
+  onToggleModel: (mkey: string) => void;
   onDelete: () => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -385,34 +414,41 @@ function TierCard({
         <span>Model package</span>
         <span>{draft.selected.size} selected</span>
       </label>
-      {pool.length === 0 ? (
+      {poolSize === 0 ? (
         <p className="text-xs text-tg-hint">
           No models available. Enable a provider and add models first.
         </p>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {pool.map((m) => {
-            const on = draft.selected.has(m.id);
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onToggleModel(m.id)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                  on
-                    ? "border-brand/40 bg-brand/12 text-brand"
-                    : "border-black/[0.08] dark:border-white/[0.12] text-tg-hint active:bg-black/[0.04] dark:active:bg-white/[0.06]"
-                }`}
-                title={m.id}
-              >
-                {on && <Check className="h-3 w-3" aria-hidden />}
-                <span className="max-w-[10rem] truncate">{m.label}</span>
-                <span className="opacity-50">
-                  {PROVIDER_LABEL[m.provider]?.[0] ?? ""}
-                </span>
-              </button>
-            );
-          })}
+        <div className="space-y-3">
+          {groups.map((group) => (
+            <div key={group.provider}>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-tg-hint">
+                {providerLabel(group.provider)}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.models.map((m) => {
+                  const mkey = modelKey(m);
+                  const on = draft.selected.has(mkey);
+                  return (
+                    <button
+                      key={mkey}
+                      type="button"
+                      onClick={() => onToggleModel(mkey)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        on
+                          ? "border-brand/40 bg-brand/12 text-brand"
+                          : "border-black/[0.08] dark:border-white/[0.12] text-tg-hint active:bg-black/[0.04] dark:active:bg-white/[0.06]"
+                      }`}
+                      title={m.id}
+                    >
+                      {on && <Check className="h-3 w-3" aria-hidden />}
+                      <span className="max-w-[10rem] truncate">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </Card>

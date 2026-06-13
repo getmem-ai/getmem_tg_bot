@@ -27,7 +27,10 @@ GENERATION_PAUSED_KEY = "generation_paused"
 MAX_TOKENS_KEY = "max_tokens"
 VISION_ENABLED_KEY = "vision_enabled"
 VISION_MODEL_KEY = "vision_model"
+VISION_PREMIUM_ONLY_KEY = "vision_premium_only"
 WELCOME_KEY = "welcome_message"
+BRAND_NAME_KEY = "brand_name"
+BRAND_TAGLINE_KEY = "brand_tagline"
 
 
 def _utcnow() -> dt.datetime:

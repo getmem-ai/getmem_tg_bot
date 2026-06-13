@@ -54,6 +54,12 @@ class UpgradeTier(BaseModel):
     price_stars: int
     period_days: int
     model_count: int
+    models: list[ModelSpecOut]
+
+
+class BrandOut(BaseModel):
+    name: str
+    tagline: str
 
 
 class MeOut(BaseModel):
@@ -65,6 +71,7 @@ class MeOut(BaseModel):
     available_models: list[ModelSpecOut]
     upgrade_tiers: list[UpgradeTier]
     user_roles_enabled: bool
+    brand: BrandOut
 
 
 class RoleIn(BaseModel):
@@ -104,7 +111,10 @@ class RuntimeOut(BaseModel):
     vision_enabled: bool
     vision_model: str
     vision_provider: str
+    vision_premium_only: bool
     welcome_message: str  # "" when using the built-in default
+    brand_name: str
+    brand_tagline: str
 
 
 class RuntimeIn(BaseModel):
@@ -116,7 +126,21 @@ class RuntimeIn(BaseModel):
     vision_enabled: bool | None = None
     vision_model: str | None = None
     vision_provider: str | None = None
+    vision_premium_only: bool | None = None
     welcome_message: str | None = None
+    brand_name: str | None = None
+    brand_tagline: str | None = None
+
+
+class ProviderTestIn(BaseModel):
+    name: str
+    api_key: str | None = None  # optional override; falls back to the stored key
+    model: str | None = None
+
+
+class ProviderTestOut(BaseModel):
+    ok: bool
+    detail: str
 
 
 class ProviderOut(BaseModel):

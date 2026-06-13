@@ -16,6 +16,7 @@ import type {
   PromptResponse,
   ProvidersResponse,
   ProviderConfig,
+  ProviderTestResult,
   ProviderUpdate,
   RuntimeResponse,
   RuntimeUpdate,
@@ -123,6 +124,12 @@ export const api = {
   getProviders: () => request<ProvidersResponse>("/admin/providers"),
   setProvider: (update: ProviderUpdate) =>
     putJson<ProviderConfig>("/admin/providers", update),
+  testProvider: (name: string, opts?: { api_key?: string; model?: string }) =>
+    request<ProviderTestResult>("/admin/providers/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, ...opts }),
+    }),
 
   // ---- Admin: users ----
   adminListUsers: (params?: { search?: string; limit?: number; offset?: number }) => {

@@ -84,6 +84,20 @@ async def on_photo(
     if not await config.vision_enabled():
         await message.answer(texts.VISION_DISABLED)
         return
+    # Vision is a premium feature by default: free users get an upsell and we do
+    # NOT consume a request from their quota.
+    if await config.vision_premium_only():
+        async with db.session() as session:
+            u = await repo.get_or_create_user(
+                session,
+                message.from_user.id,
+                username=message.from_user.username,
+                first_name=message.from_user.first_name,
+            )
+            premium = u.is_premium
+        if not premium:
+            await message.answer(texts.VISION_PREMIUM)
+            return
     # Largest available size is last; download to memory and build a data URL.
     bot: Bot = message.bot  # type: ignore[assignment]
     buffer = io.BytesIO()

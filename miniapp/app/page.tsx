@@ -80,7 +80,7 @@ function Shell() {
   return (
     <>
       <main className="mx-auto w-full max-w-md px-4 pt-5 pb-tabbar">
-        <AppHeader />
+        <AppHeader name={me.data?.brand?.name} tagline={me.data?.brand?.tagline} />
         <div key={tab} className="animate-fade-in">
           {tab === "home" && <HomeTab me={me} onUpgrade={() => setTab("settings")} />}
           {tab === "activity" && <ActivityTab />}

@@ -259,6 +259,35 @@ class ConfigStore:
             repo.VISION_MODEL_KEY, {"provider": provider, "id": model_id}
         )
 
+    async def vision_premium_only(self) -> bool:
+        """If true (default), only paid-tier users can send photos."""
+        stored = await self._get_str(repo.VISION_PREMIUM_ONLY_KEY)
+        return stored != "false"
+
+    async def set_vision_premium_only(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.VISION_PREMIUM_ONLY_KEY, "true" if on else "false"
+                )
+
+    # -- branding (white-label header) ----------------------------------
+
+    async def brand_name(self) -> str:
+        return (await self._get_str(repo.BRAND_NAME_KEY)) or "GetMem"
+
+    async def brand_tagline(self) -> str:
+        stored = await self._get_str(repo.BRAND_TAGLINE_KEY)
+        return stored if stored is not None else "Memory-first assistant"
+
+    async def set_brand(self, name: str, tagline: str) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(session, repo.BRAND_NAME_KEY, name.strip())
+                await repo.set_setting(
+                    session, repo.BRAND_TAGLINE_KEY, tagline.strip()
+                )
+
     async def disabled_models(self) -> set[str]:
         data = await self._get_json(repo.DISABLED_MODELS_KEY)
         return set(data) if isinstance(data, list) else set()

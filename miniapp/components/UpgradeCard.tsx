@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
-import { Check, Crown, Loader2, Sparkles, Star } from "lucide-react";
+import { Check, ChevronDown, Crown, Loader2, Star } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { haptic, openBot, openInvoice } from "@/lib/telegram";
 import type { UpgradeTier } from "@/lib/types";
@@ -23,6 +24,18 @@ interface UpgradeCardProps {
 export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string>("");
+  // Which tiers have their model list expanded.
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  function toggleModels(key: string) {
+    haptic("light");
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   if (tiers.length === 0) return null;
 
@@ -71,7 +84,16 @@ export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
               <Crown className="h-3 w-3" aria-hidden /> {tier.name}
             </span>
-            <Sparkles className="h-5 w-5 text-white/70" aria-hidden />
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-soft">
+              <Image
+                src="/brand/premium.png"
+                alt=""
+                aria-hidden
+                width={56}
+                height={56}
+                className="h-full w-full object-contain p-1"
+              />
+            </span>
           </div>
 
           <ul className="relative mt-4 space-y-2 text-sm text-white/90">
@@ -79,9 +101,40 @@ export function UpgradeCard({ tiers, onPaid }: UpgradeCardProps) {
               <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
               Up to <b className="text-white">{formatNumber(tier.daily_limit)}</b> messages/day
             </li>
-            <li className="flex items-center gap-2">
-              <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
-              {tier.model_count} models incl. premium
+            <li>
+              <button
+                type="button"
+                onClick={() => toggleModels(tier.key)}
+                aria-expanded={open.has(tier.key)}
+                className="flex w-full items-center gap-2 text-left transition active:scale-[0.99]"
+              >
+                <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />
+                <span>
+                  <b className="text-white">{tier.model_count}</b> models incl.
+                  premium
+                </span>
+                {tier.models.length > 0 && (
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-white/80 transition-transform ${
+                      open.has(tier.key) ? "rotate-180" : ""
+                    }`}
+                    aria-hidden
+                  />
+                )}
+              </button>
+              {open.has(tier.key) && tier.models.length > 0 && (
+                <ul className="mt-2 ml-6 flex flex-wrap gap-1.5">
+                  {tier.models.map((m) => (
+                    <li
+                      key={`${m.provider}:${m.id}`}
+                      className="rounded-lg bg-white/15 px-2 py-1 text-[12px] font-medium text-white backdrop-blur"
+                      title={m.id}
+                    >
+                      {m.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
             <li className="flex items-center gap-2">
               <Check className="h-4 w-4 shrink-0 text-white" aria-hidden />

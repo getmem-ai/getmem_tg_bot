@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BadgeCheck,
   Drama,
   Image as ImageIcon,
   MessageSquareText,
@@ -16,7 +17,7 @@ import type { RuntimeResponse } from "@/lib/types";
 import { Card, SectionTitle } from "../Card";
 import { CardSkeleton } from "../Skeleton";
 import { ErrorState } from "../ErrorState";
-import { Button, Input, SaveMessage, Toggle, type SaveStatus } from "../ui";
+import { Button, Field, Input, SaveMessage, Toggle, type SaveStatus } from "../ui";
 
 /** Voice transcription toggle + per-model rotation kill-switches. */
 export function RuntimeEditor() {
@@ -38,7 +39,12 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [maxTokens, setMaxTokens] = useState<string>(String(initial.max_tokens));
   const [vision, setVision] = useState(initial.vision_enabled);
   const [visionModel, setVisionModel] = useState(initial.vision_model);
+  const [visionPremiumOnly, setVisionPremiumOnly] = useState(
+    initial.vision_premium_only,
+  );
   const [welcome, setWelcome] = useState(initial.welcome_message);
+  const [brandName, setBrandName] = useState(initial.brand_name);
+  const [brandTagline, setBrandTagline] = useState(initial.brand_tagline);
   const [disabled, setDisabled] = useState<Set<string>>(
     new Set(initial.disabled_models),
   );
@@ -69,7 +75,10 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         max_tokens: tokens,
         vision_enabled: vision,
         vision_model: visionModel.trim() || undefined,
+        vision_premium_only: visionPremiumOnly,
         welcome_message: welcome,
+        brand_name: brandName,
+        brand_tagline: brandTagline,
       });
       setVoice(res.voice_enabled);
       setRolesEnabled(res.user_roles_enabled);
@@ -77,7 +86,10 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       setMaxTokens(String(res.max_tokens));
       setVision(res.vision_enabled);
       setVisionModel(res.vision_model);
+      setVisionPremiumOnly(res.vision_premium_only);
       setWelcome(res.welcome_message);
+      setBrandName(res.brand_name);
+      setBrandTagline(res.brand_tagline);
       setDisabled(new Set(res.disabled_models));
       setStatus("saved");
       setMessage("Saved");
@@ -169,18 +181,37 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
           <Toggle checked={vision} onChange={setVision} label="Vision" />
         </div>
         {vision && (
-          <div className="mt-3">
-            <Input
-              value={visionModel}
-              onChange={(e) => setVisionModel(e.target.value)}
-              placeholder="google/gemma-4-31b-it:free"
-              aria-label="Vision model"
-            />
-            <p className="mt-1 text-xs text-muted">
-              Must be a vision-capable model (OpenRouter id). Default works out of
-              the box.
-            </p>
-          </div>
+          <>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Premium only</p>
+                <p className="text-xs text-muted">
+                  Free users get an upsell instead — no request is used.
+                </p>
+              </div>
+              <Toggle
+                checked={visionPremiumOnly}
+                onChange={setVisionPremiumOnly}
+                label="Vision premium only"
+              />
+            </div>
+            <div className="mt-3">
+              <Field label="Vision model — which AI reads the photos">
+                <Input
+                  value={visionModel}
+                  onChange={(e) => setVisionModel(e.target.value)}
+                  placeholder="google/gemma-4-31b-it:free"
+                  aria-label="Vision model"
+                />
+              </Field>
+              <p className="mt-1 text-xs text-muted">
+                Not every model can &ldquo;see&rdquo; images — pick a
+                vision-capable one (OpenRouter id). The default is free and works
+                out of the box; for sharper results try{" "}
+                <code>openai/gpt-4o</code> or <code>google/gemini-2.5-pro</code>.
+              </p>
+            </div>
+          </>
         )}
       </div>
 
@@ -204,6 +235,37 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
           placeholder="👋 Hi {name}! I'm your assistant…"
           className="mt-3 w-full resize-y rounded-2xl border border-border bg-surface-2/60 p-3 text-sm text-text outline-none transition focus:border-primary focus:bg-surface focus:shadow-ring"
         />
+      </div>
+
+      {/* Branding */}
+      <div className="mt-2 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <BadgeCheck className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Branding</p>
+            <p className="text-xs text-muted">Shown in the app header.</p>
+          </div>
+        </div>
+        <div className="mt-3 space-y-3">
+          <Field label="Brand name">
+            <Input
+              value={brandName}
+              onChange={(e) => setBrandName(e.target.value)}
+              placeholder="GetMem"
+              aria-label="Brand name"
+            />
+          </Field>
+          <Field label="Tagline">
+            <Input
+              value={brandTagline}
+              onChange={(e) => setBrandTagline(e.target.value)}
+              placeholder="Memory-first assistant"
+              aria-label="Brand tagline"
+            />
+          </Field>
+        </div>
       </div>
 
       <div className="mt-2 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">

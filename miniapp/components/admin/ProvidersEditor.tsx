@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, Lock, Save, Server } from "lucide-react";
+import { Check, KeyRound, Loader2, Lock, Save, Server, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type { ProviderConfig, ProvidersResponse } from "@/lib/types";
@@ -44,8 +44,36 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
   const [keyMasked, setKeyMasked] = useState(provider.key_masked);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [message, setMessage] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    detail: string;
+  } | null>(null);
 
   const readOnlyKey = provider.is_default;
+
+  async function test() {
+    setTesting(true);
+    setTestResult(null);
+    const models = parseModels(modelsText);
+    try {
+      const res = await api.testProvider(provider.name, {
+        ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}),
+        ...(models[0] ? { model: models[0] } : {}),
+      });
+      setTestResult(res);
+    } catch (err: unknown) {
+      setTestResult({
+        ok: false,
+        detail:
+          err instanceof ApiError && err.isForbidden
+            ? "Admins only."
+            : "Test failed.",
+      });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   async function save() {
     setStatus("saving");
@@ -150,16 +178,44 @@ function ProviderRow({ provider }: { provider: ProviderConfig }) {
         placeholder="gpt-4o&#10;gpt-4o-mini"
       />
 
+      {testResult && (
+        <p
+          className={`mt-3 flex items-start gap-1.5 text-xs ${
+            testResult.ok ? "text-success" : "text-danger"
+          }`}
+        >
+          {testResult.ok ? (
+            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          ) : (
+            <X className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+          )}
+          <span className="min-w-0 break-words">{testResult.detail}</span>
+        </p>
+      )}
+
       <div className="mt-3 flex items-center justify-between gap-3">
         <SaveMessage status={status} message={message} />
-        <Button
-          onClick={save}
-          disabled={status === "saving"}
-          icon={Save}
-          size="sm"
-        >
-          {status === "saving" ? "Saving…" : "Save"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={test}
+            disabled={testing}
+            variant="secondary"
+            size="sm"
+          >
+            {testing ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : null}
+            {testing ? "Testing…" : "Test"}
+          </Button>
+          <Button
+            onClick={save}
+            disabled={status === "saving"}
+            icon={Save}
+            size="sm"
+          >
+            {status === "saving" ? "Saving…" : "Save"}
+          </Button>
+        </div>
       </div>
     </Card>
   );

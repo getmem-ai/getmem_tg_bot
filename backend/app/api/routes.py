@@ -35,11 +35,14 @@ from .schemas import (
     AdminUsersOut,
     AdminUserUpdate,
     AnalyticsOut,
+    BrandOut,
     BroadcastIn,
     BroadcastOut,
     DayCount,
     HealthOut,
     ModelCount,
+    ProviderTestIn,
+    ProviderTestOut,
     InvoiceIn,
     InvoiceOut,
     MeOut,
@@ -143,11 +146,15 @@ async def me(
                 price_stars=t.price_stars,
                 period_days=t.period_days,
                 model_count=len(t.models),
+                models=[_spec_out(m) for m in t.models],
             )
             for t in paid
             if t.key != db_user.tier  # don't offer the tier they're already on
         ],
         user_roles_enabled=await config.user_roles_enabled(),
+        brand=BrandOut(
+            name=await config.brand_name(), tagline=await config.brand_tagline()
+        ),
     )
 
 
@@ -306,7 +313,10 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         vision_enabled=await config.vision_enabled(),
         vision_model=vision.id,
         vision_provider=vision.provider,
+        vision_premium_only=await config.vision_premium_only(),
         welcome_message=await config.welcome_message() or "",
+        brand_name=await config.brand_name(),
+        brand_tagline=await config.brand_tagline(),
     )
 
 
@@ -340,9 +350,64 @@ async def set_runtime(
         current = await config.vision_model()
         provider = (body.vision_provider or current.provider).strip() or "openrouter"
         await config.set_vision_model(provider, body.vision_model.strip())
+    if body.vision_premium_only is not None:
+        await config.set_vision_premium_only(body.vision_premium_only)
     if body.welcome_message is not None:
         await config.set_welcome_message(body.welcome_message)
+    if body.brand_name is not None or body.brand_tagline is not None:
+        name = body.brand_name if body.brand_name is not None else await config.brand_name()
+        tagline = (
+            body.brand_tagline
+            if body.brand_tagline is not None
+            else await config.brand_tagline()
+        )
+        await config.set_brand(name or "GetMem", tagline)
     return await _runtime_out(config)
+
+
+@router.post("/admin/providers/test", response_model=ProviderTestOut)
+async def test_provider(
+    body: ProviderTestIn,
+    _admin: TelegramUser = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
+    config: ConfigStore = Depends(get_config),
+) -> ProviderTestOut:
+    """Verify a provider's API key with a tiny live completion."""
+    from ..core.router import ModelRouter, ResolvedSpec
+
+    providers = await config.providers()
+    p = providers.get(body.name)
+    if p is None:
+        return ProviderTestOut(ok=False, detail="Unknown provider.")
+    key = (body.api_key or "").strip() or p.api_key
+    if not key and p.requires_key:
+        return ProviderTestOut(ok=False, detail="No API key set.")
+    model = (body.model or "").strip() or (p.models[0] if p.models else "")
+    if not model:
+        return ProviderTestOut(ok=False, detail="No model to test.")
+
+    router = ModelRouter(
+        openrouter_base_url=settings.openrouter_base_url,
+        timeout=20.0,
+        app_url=settings.app_url,
+        app_name=settings.app_name,
+    )
+    spec = ResolvedSpec(
+        provider=p.name,
+        model=model,
+        api_key=key or "ollama",
+        kind=p.kind,
+        base_url=p.base_url,
+    )
+    try:
+        comp = await router.complete(
+            [{"role": "user", "content": "ping"}], [spec], max_tokens=5
+        )
+        return ProviderTestOut(ok=True, detail=f"OK — {comp.model} responded.")
+    except Exception as exc:  # noqa: BLE001 - report the failure to the admin
+        return ProviderTestOut(ok=False, detail=f"Failed: {exc}"[:200])
+    finally:
+        await router.aclose()
 
 
 # -- admin: providers --------------------------------------------------------

@@ -10,6 +10,11 @@ export interface ModelSpec {
   label: string;
 }
 
+export interface Brand {
+  name: string;
+  tagline: string;
+}
+
 export interface User {
   id: number;
   username: string | null;
@@ -47,6 +52,7 @@ export interface UpgradeTier {
   price_stars: number;
   period_days: number;
   model_count: number;
+  models: ModelSpec[];
 }
 
 export interface MeResponse {
@@ -58,6 +64,7 @@ export interface MeResponse {
   available_models: ModelSpec[];
   upgrade_tiers: UpgradeTier[];
   user_roles_enabled: boolean;
+  brand: Brand;
 }
 
 export interface SetModelResponse {
@@ -161,7 +168,10 @@ export interface RuntimeResponse {
   vision_enabled: boolean;
   vision_model: string;
   vision_provider: string;
+  vision_premium_only: boolean;
   welcome_message: string;
+  brand_name: string;
+  brand_tagline: string;
 }
 
 export interface RuntimeUpdate {
@@ -173,7 +183,10 @@ export interface RuntimeUpdate {
   vision_enabled?: boolean;
   vision_model?: string;
   vision_provider?: string;
+  vision_premium_only?: boolean;
   welcome_message?: string;
+  brand_name?: string;
+  brand_tagline?: string;
 }
 
 export interface ProviderConfig {
@@ -189,6 +202,11 @@ export interface ProviderConfig {
 
 export interface ProvidersResponse {
   providers: ProviderConfig[];
+}
+
+export interface ProviderTestResult {
+  ok: boolean;
+  detail: string;
 }
 
 export interface ProviderUpdate {
