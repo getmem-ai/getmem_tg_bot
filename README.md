@@ -46,6 +46,21 @@ global stats.
 - 🧩 **Clean architecture** — ports & adapters + a DI container; depend on interfaces, swap vendors in one line.
 - 🐳 **Three deploys** — local, self-managed VPS (Caddy auto-HTTPS), and Dokploy. Built with **uv**.
 
+## 🎯 Who it's for
+
+The popular self-hostable Telegram AI bots are loved but dated **OpenAI-only
+wrappers** with only short-term memory, no built-in monetization, and no admin
+tooling. This project is the combination nobody ships together: **memory-first,
+multi-provider, monetizable (Telegram Stars), with an admin dashboard** — one
+`docker compose up`.
+
+Great for: **indie hackers** shipping a paid AI bot in a weekend · **coaches /
+creators** whose assistant must *remember* each client · **community owners**
+adding a free+premium AI perk · **developers** wanting a clean memory-first agent
+template · **teams** running a private, self-hosted assistant.
+
+→ Deep dive with the market comparison: [docs/USE_CASES.md](docs/USE_CASES.md).
+
 ## 🗺️ Repository layout
 
 ```
