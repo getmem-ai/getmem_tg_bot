@@ -126,6 +126,7 @@ function HomeTab({
             user={me.data.user}
             tier={me.data.tier}
             onUpgrade={canUpgrade ? onUpgrade : undefined}
+            onProfileSaved={() => me.reload()}
           />
           <UsageRing usage={me.data.usage} />
         </>

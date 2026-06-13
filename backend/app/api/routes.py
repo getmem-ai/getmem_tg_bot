@@ -47,6 +47,8 @@ from .schemas import (
     InvoiceOut,
     MeOut,
     ModelSpecOut,
+    ProfileIn,
+    ProfileOut,
     PromptIn,
     PromptOut,
     RoleIn,
@@ -127,6 +129,10 @@ async def me(
             role=db_user.role,
             role_enabled=db_user.role_enabled,
             banned=db_user.banned,
+            avatar=db_user.avatar,
+            reply_language=db_user.reply_language,
+            reply_style=db_user.reply_style,
+            reply_length=db_user.reply_length,
             created_at=db_user.created_at,
         ),
         usage=UsageOut(
@@ -179,6 +185,77 @@ async def set_my_role(
     await session.flush()
     refreshed = await repo.get_user(session, user.id) or db_user
     return RoleOut(role=refreshed.role, enabled=refreshed.role_enabled)
+
+
+# Accepted preference values (None / "auto" / "default" all mean "no preference").
+_LANGUAGES = {
+    "auto", "en", "ru", "es", "de", "fr", "pt", "it", "uk", "pl", "tr",
+    "zh", "ja", "ko", "ar", "hi", "id",
+}
+_STYLES = {"default", "friendly", "formal"}
+_LENGTHS = {"default", "concise", "detailed"}
+_MAX_AVATAR_CHARS = 400_000  # ~300 KB once base64-decoded
+
+
+@router.put("/me/profile", response_model=ProfileOut)
+async def set_my_profile(
+    body: ProfileIn,
+    user: TelegramUser = Depends(current_user),
+    session: AsyncSession = Depends(db_session),
+) -> ProfileOut:
+    """Update the user's avatar and reply preferences (only provided fields)."""
+    fields = body.model_fields_set
+    changes: dict[str, str | None] = {}
+
+    if "avatar" in fields:
+        avatar = body.avatar
+        if avatar:
+            if not avatar.startswith("data:image/") or ";base64," not in avatar:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Avatar must be a base64 image data URL.",
+                )
+            if len(avatar) > _MAX_AVATAR_CHARS:
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Avatar is too large — please use a smaller image.",
+                )
+            changes["avatar"] = avatar
+        else:
+            changes["avatar"] = None  # explicit clear
+
+    if "reply_language" in fields:
+        lang = (body.reply_language or "auto").lower()
+        if lang not in _LANGUAGES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown language."
+            )
+        changes["reply_language"] = None if lang == "auto" else lang
+
+    if "reply_style" in fields:
+        style = (body.reply_style or "default").lower()
+        if style not in _STYLES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown style."
+            )
+        changes["reply_style"] = None if style == "default" else style
+
+    if "reply_length" in fields:
+        length = (body.reply_length or "default").lower()
+        if length not in _LENGTHS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown length."
+            )
+        changes["reply_length"] = None if length == "default" else length
+
+    updated = await repo.update_profile(session, user.id, changes)
+    await session.flush()
+    return ProfileOut(
+        avatar=updated.avatar,
+        reply_language=updated.reply_language,
+        reply_style=updated.reply_style,
+        reply_length=updated.reply_length,
+    )
 
 
 @router.post("/me/invoice", response_model=InvoiceOut)

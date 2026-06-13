@@ -35,6 +35,11 @@ _ROLE_HEADER = (
     "Adopt this role/persona for this user (it refines, and does not override, "
     "your core instructions or safety):\n"
 )
+_PREFS_HEADER = (
+    "# This user's reply preferences\n"
+    "The user set these preferences — honour them in every reply (they refine, "
+    "and do not override, your core instructions or safety):\n"
+)
 _ACCOUNT_HEADER = (
     "# This user's account & usage right now\n"
     "Use this to answer questions about their plan, limits, remaining messages "
@@ -52,11 +57,13 @@ class ContextBuilder:
 
     @staticmethod
     def _dynamic_message(
-        user_role: str, account_info: str, memory_context: str
+        user_role: str, account_info: str, memory_context: str, preferences: str
     ) -> dict[str, str] | None:
         parts: list[str] = []
         if user_role and user_role.strip():
             parts.append(_ROLE_HEADER + user_role.strip())
+        if preferences and preferences.strip():
+            parts.append(_PREFS_HEADER + preferences.strip())
         if account_info and account_info.strip():
             parts.append(_ACCOUNT_HEADER + account_info.strip())
         if memory_context and memory_context.strip():
@@ -75,12 +82,15 @@ class ContextBuilder:
         user_text: str,
         account_info: str = "",
         user_role: str = "",
+        preferences: str = "",
     ) -> list[dict[str, str]]:
         # Static, cache-friendly persona (admin prompt + formatting + capabilities).
         persona = f"{system_prompt.strip()}\n\n{_FORMATTING_NOTE}\n\n{_CAPABILITIES_NOTE}"
         messages = [{"role": "system", "content": persona}]
-        # Per-user dynamic instructions (role, live quota, recalled memory).
-        dynamic = cls._dynamic_message(user_role, account_info, memory_context)
+        # Per-user dynamic instructions (role, preferences, live quota, memory).
+        dynamic = cls._dynamic_message(
+            user_role, account_info, memory_context, preferences
+        )
         if dynamic is not None:
             messages.append(dynamic)
         messages.extend(history)

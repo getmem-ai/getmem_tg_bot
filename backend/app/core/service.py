@@ -22,6 +22,39 @@ from .router import ModelRouter, ResolvedSpec
 
 log = logging.getLogger(__name__)
 
+_LANGUAGE_NAMES = {
+    "en": "English", "ru": "Russian", "es": "Spanish", "de": "German",
+    "fr": "French", "pt": "Portuguese", "it": "Italian", "uk": "Ukrainian",
+    "pl": "Polish", "tr": "Turkish", "zh": "Chinese", "ja": "Japanese",
+    "ko": "Korean", "ar": "Arabic", "hi": "Hindi", "id": "Indonesian",
+}
+_STYLE_NOTES = {
+    "friendly": "Use a warm, friendly, conversational tone.",
+    "formal": "Use a professional, formal tone.",
+}
+_LENGTH_NOTES = {
+    "concise": "Keep replies short and to the point.",
+    "detailed": "Give thorough, detailed replies with helpful context.",
+}
+
+
+def _preferences_text(user: User) -> str:
+    """Render the user's reply preferences as prompt bullet lines (or '')."""
+    lines: list[str] = []
+    lang = getattr(user, "reply_language", None)
+    if lang and lang in _LANGUAGE_NAMES:
+        lines.append(
+            f"- Always write your replies in {_LANGUAGE_NAMES[lang]}, "
+            "regardless of the language the user writes in."
+        )
+    style = _STYLE_NOTES.get(getattr(user, "reply_style", None) or "")
+    if style:
+        lines.append(f"- {style}")
+    length = _LENGTH_NOTES.get(getattr(user, "reply_length", None) or "")
+    if length:
+        lines.append(f"- {length}")
+    return "\n".join(lines)
+
 
 def _account_summary(
     tier: TierConfig, used_today: int, premium_until: dt.datetime | None
@@ -149,6 +182,7 @@ class ChatService:
             memory_context=context,
             history=history,
             user_text="",
+            preferences=_preferences_text(user),
         )[:-1]  # drop the empty trailing user message
         base.append(
             {
@@ -210,6 +244,7 @@ class ChatService:
             history=history,
             user_text=user_text,
             user_role=user_role,
+            preferences=_preferences_text(user),
         )
         max_tokens = await self.config.max_tokens() or None
         completion = await self.router.complete(

@@ -13,6 +13,8 @@ import type {
   HealthResponse,
   InvoiceResponse,
   MeResponse,
+  ProfileResponse,
+  ProfileUpdate,
   PromptResponse,
   ProvidersResponse,
   ProviderConfig,
@@ -98,6 +100,8 @@ export const api = {
     putJson<SetModelResponse>("/me/model", { model }),
   setRole: (update: { role?: string | null; enabled?: boolean }) =>
     putJson<SetRoleResponse>("/me/role", update),
+  setProfile: (update: ProfileUpdate) =>
+    putJson<ProfileResponse>("/me/profile", update),
   createInvoice: (tier_key: string) =>
     request<InvoiceResponse>("/me/invoice", {
       method: "POST",

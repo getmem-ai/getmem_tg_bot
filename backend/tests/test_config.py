@@ -60,6 +60,18 @@ def test_context_builder_injects_role() -> None:
     assert "English teacher" in dynamic
 
 
+def test_context_builder_injects_preferences() -> None:
+    msgs = ContextBuilder.build(
+        system_prompt="Persona",
+        preferences="- Always write your replies in Russian.",
+        memory_context="",
+        history=[],
+        user_text="hi",
+    )
+    assert msgs[1]["role"] == "system"
+    assert "Russian" in msgs[1]["content"]
+
+
 def test_context_builder_capabilities_in_persona() -> None:
     msgs = ContextBuilder.build(
         system_prompt="P", memory_context="", history=[], user_text="hi"

@@ -1,13 +1,17 @@
-import { Crown, Cpu, CalendarClock, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Crown, Cpu, CalendarClock, Pencil, Sparkles } from "lucide-react";
 import type { TierInfo, User } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
+import { ProfileEditor } from "./ProfileEditor";
 
 interface ProfileCardProps {
   user: User;
   tier?: TierInfo;
   /** When provided and the user is on the free plan, shows an Upgrade button. */
   onUpgrade?: () => void;
+  /** Called after the user saves profile changes (to refresh /me). */
+  onProfileSaved?: () => void;
 }
 
 function TierBadge({ user }: { user: User }) {
@@ -45,12 +49,18 @@ function HeroRow({
   );
 }
 
-export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
+export function ProfileCard({
+  user,
+  tier,
+  onUpgrade,
+  onProfileSaved,
+}: ProfileCardProps) {
   const isPremium = user.is_premium || user.tier === "premium";
   const model = user.preferred_model ?? "Auto";
   const showUpgrade = !isPremium && onUpgrade;
   const initial =
     user.first_name?.trim()?.[0] || user.username?.trim()?.[0] || "U";
+  const [editing, setEditing] = useState(false);
 
   return (
     <section className="relative overflow-hidden rounded-card-lg bg-grad-primary p-5 text-white shadow-pop">
@@ -64,11 +74,38 @@ export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
         className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-accent/25 blur-3xl"
       />
 
+      {/* Edit profile */}
+      <button
+        type="button"
+        onClick={() => {
+          haptic("light");
+          setEditing(true);
+        }}
+        aria-label="Edit profile"
+        className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur transition active:scale-95 active:bg-white/25"
+      >
+        <Pencil className="h-4 w-4" aria-hidden />
+      </button>
+
       <div className="relative flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold uppercase text-white shadow-soft ring-1 ring-white/40 backdrop-blur">
-          {initial}
-        </div>
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => {
+            haptic("light");
+            setEditing(true);
+          }}
+          aria-label="Edit profile photo"
+          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-2xl font-bold uppercase text-white shadow-soft ring-1 ring-white/40 backdrop-blur transition active:scale-95"
+        >
+          {user.avatar ? (
+            // Stored data URL — next/image isn't needed here.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
+        </button>
+        <div className="min-w-0 flex-1 pr-9">
           <div className="flex items-center gap-2">
             <p className="truncate text-xl font-bold">{user.first_name}</p>
             <TierBadge user={user} />
@@ -112,6 +149,14 @@ export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
           <Sparkles className="h-4 w-4" aria-hidden />
           Upgrade to Premium
         </button>
+      )}
+
+      {editing && (
+        <ProfileEditor
+          user={user}
+          onClose={() => setEditing(false)}
+          onSaved={() => onProfileSaved?.()}
+        />
       )}
     </section>
   );

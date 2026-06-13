@@ -50,6 +50,12 @@ class User(Base):
     role_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=sa_false()
     )
+    # User-editable profile: a custom avatar (stored as a small base64 data URL)
+    # and reply preferences woven into this user's prompt context.
+    avatar: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reply_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    reply_style: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    reply_length: Mapped[str | None] = mapped_column(String(16), nullable=True)
     premium_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

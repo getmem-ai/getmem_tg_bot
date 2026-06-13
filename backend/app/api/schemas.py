@@ -21,7 +21,28 @@ class UserOut(BaseModel):
     role: str | None
     role_enabled: bool = False
     banned: bool = False
+    avatar: str | None = None
+    reply_language: str | None = None
+    reply_style: str | None = None
+    reply_length: str | None = None
     created_at: dt.datetime
+
+
+class ProfileIn(BaseModel):
+    """User-editable profile. Only the fields present are updated; an explicit
+    ``null`` clears a value (e.g. removing the avatar)."""
+
+    avatar: str | None = None
+    reply_language: str | None = None
+    reply_style: str | None = None
+    reply_length: str | None = None
+
+
+class ProfileOut(BaseModel):
+    avatar: str | None = None
+    reply_language: str | None = None
+    reply_style: str | None = None
+    reply_length: str | None = None
 
 
 class UsageOut(BaseModel):

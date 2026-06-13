@@ -25,7 +25,25 @@ export interface User {
   preferred_model: string | null;
   role: string | null;
   role_enabled: boolean;
+  avatar: string | null;
+  reply_language: string | null;
+  reply_style: string | null;
+  reply_length: string | null;
   created_at: string;
+}
+
+export interface ProfileUpdate {
+  avatar?: string | null;
+  reply_language?: string | null;
+  reply_style?: string | null;
+  reply_length?: string | null;
+}
+
+export interface ProfileResponse {
+  avatar: string | null;
+  reply_language: string | null;
+  reply_style: string | null;
+  reply_length: string | null;
 }
 
 export interface Usage {

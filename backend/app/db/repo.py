@@ -81,6 +81,20 @@ async def set_role(session: AsyncSession, user_id: int, role: str | None) -> Non
     user.role = role
 
 
+_PROFILE_FIELDS = {"avatar", "reply_language", "reply_style", "reply_length"}
+
+
+async def update_profile(
+    session: AsyncSession, user_id: int, changes: dict[str, str | None]
+) -> User:
+    """Apply user-editable profile fields (only the provided, allow-listed keys)."""
+    user = await get_or_create_user(session, user_id)
+    for key, value in changes.items():
+        if key in _PROFILE_FIELDS:
+            setattr(user, key, value)
+    return user
+
+
 async def set_role_enabled(
     session: AsyncSession, user_id: int, enabled: bool
 ) -> None:
