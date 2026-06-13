@@ -82,7 +82,11 @@ class ModelRouter:
         return adapter
 
     async def complete(
-        self, messages: list[dict[str, str]], specs: list[ResolvedSpec]
+        self,
+        messages: list[dict[str, str]],
+        specs: list[ResolvedSpec],
+        *,
+        max_tokens: int | None = None,
     ) -> Completion:
         usable = [s for s in specs if s.api_key]
         if not usable:
@@ -91,7 +95,9 @@ class ModelRouter:
         for spec in usable:
             adapter = self._adapter(spec)
             try:
-                return await adapter.complete(messages, [spec.model])
+                return await adapter.complete(
+                    messages, [spec.model], max_tokens=max_tokens
+                )
             except LLMError as exc:
                 last_error = f"{spec.provider}:{spec.model}: {exc}"
                 continue

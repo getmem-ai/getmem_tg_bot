@@ -152,6 +152,7 @@ ERROR_GENERIC = (
     "😕 Something went wrong on my side. Please try again in a moment."
 )
 BANNED = "🚫 Your access to this bot has been suspended."
+PAUSED = "⏸️ The bot is temporarily paused for maintenance. Please try again soon."
 
 
 def all_busy(is_premium: bool) -> str:

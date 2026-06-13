@@ -23,6 +23,8 @@ DISABLED_MODELS_KEY = "disabled_models"
 PROVIDERS_KEY = "providers"
 TIERS_KEY = "tiers"
 USER_ROLES_KEY = "user_roles_enabled"
+GENERATION_PAUSED_KEY = "generation_paused"
+MAX_TOKENS_KEY = "max_tokens"
 
 
 def _utcnow() -> dt.datetime:
@@ -293,6 +295,91 @@ async def reset_today_usage(session: AsyncSession, user_id: int) -> None:
             DailyUsage.user_id == user_id, DailyUsage.day == _today()
         )
     )
+
+
+async def all_user_ids(
+    session: AsyncSession, *, tier: str | None = None, only_active: bool = True
+) -> list[int]:
+    """User ids for broadcasting. ``tier`` filters; banned users excluded by default."""
+    q = select(User.id)
+    if only_active:
+        q = q.where(User.banned.is_(False))
+    if tier:
+        q = q.where(User.tier == tier)
+    rows = await session.execute(q)
+    return [int(r) for r in rows.scalars().all()]
+
+
+# -- analytics ---------------------------------------------------------------
+
+
+def _zero_filled(rows: list[tuple[dt.date, int]], days: int) -> list[dict[str, object]]:
+    start = _today() - dt.timedelta(days=days - 1)
+    counts = {d: c for d, c in rows}
+    out: list[dict[str, object]] = []
+    for i in range(days):
+        day = start + dt.timedelta(days=i)
+        out.append({"day": day.isoformat(), "count": int(counts.get(day, 0))})
+    return out
+
+
+async def messages_per_day(
+    session: AsyncSession, days: int
+) -> list[dict[str, object]]:
+    days = max(1, min(days, 90))
+    start = dt.datetime.combine(
+        _today() - dt.timedelta(days=days - 1), dt.time.min, tzinfo=dt.timezone.utc
+    )
+    day = func.date(Message.created_at)
+    rows = await session.execute(
+        select(day, func.count())
+        .where(Message.created_at >= start)
+        .group_by(day)
+    )
+    return _zero_filled([(r[0], r[1]) for r in rows.all()], days)
+
+
+async def new_users_per_day(
+    session: AsyncSession, days: int
+) -> list[dict[str, object]]:
+    days = max(1, min(days, 90))
+    start = dt.datetime.combine(
+        _today() - dt.timedelta(days=days - 1), dt.time.min, tzinfo=dt.timezone.utc
+    )
+    day = func.date(User.created_at)
+    rows = await session.execute(
+        select(day, func.count()).where(User.created_at >= start).group_by(day)
+    )
+    return _zero_filled([(r[0], r[1]) for r in rows.all()], days)
+
+
+async def model_mix(
+    session: AsyncSession, days: int, limit: int = 8
+) -> list[dict[str, object]]:
+    start = dt.datetime.combine(
+        _today() - dt.timedelta(days=max(1, min(days, 90)) - 1),
+        dt.time.min,
+        tzinfo=dt.timezone.utc,
+    )
+    rows = await session.execute(
+        select(Message.model, func.count())
+        .where(
+            Message.role == "assistant",
+            Message.model.is_not(None),
+            Message.created_at >= start,
+        )
+        .group_by(Message.model)
+        .order_by(func.count().desc())
+        .limit(limit)
+    )
+    return [{"model": m, "count": int(c)} for m, c in rows.all()]
+
+
+async def revenue_stars(session: AsyncSession) -> int:
+    total = await session.scalar(
+        select(func.coalesce(func.sum(Payment.amount_stars), 0))
+    )
+    return int(total or 0)
 
 
 # -- app settings (key-value) ------------------------------------------------

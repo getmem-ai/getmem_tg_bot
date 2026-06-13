@@ -99,12 +99,16 @@ class RuntimeOut(BaseModel):
     disabled_models: list[str]
     all_models: list[ModelSpecOut]
     user_roles_enabled: bool
+    generation_paused: bool
+    max_tokens: int
 
 
 class RuntimeIn(BaseModel):
     voice_enabled: bool | None = None
     disabled_models: list[str] | None = None
     user_roles_enabled: bool | None = None
+    generation_paused: bool | None = None
+    max_tokens: int | None = None
 
 
 class ProviderOut(BaseModel):
@@ -234,6 +238,32 @@ class AdminUserUpdate(BaseModel):
     limit_override: int | None = None
     tier: str | None = None
     reset_usage: bool | None = None
+
+
+class BroadcastIn(BaseModel):
+    text: str
+    tier: str | None = None  # None = all users
+
+
+class BroadcastOut(BaseModel):
+    queued: int
+
+
+class DayCount(BaseModel):
+    day: str
+    count: int
+
+
+class ModelCount(BaseModel):
+    model: str
+    count: int
+
+
+class AnalyticsOut(BaseModel):
+    messages: list[DayCount]
+    new_users: list[DayCount]
+    model_mix: list[ModelCount]
+    revenue_stars: int
 
 
 class HealthOut(BaseModel):

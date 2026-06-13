@@ -125,6 +125,11 @@ async def respond(
         await message.answer(texts.BANNED)
         return
 
+    # Global kill-switch (admin paused the bot).
+    if await config.generation_paused():
+        await message.answer(texts.PAUSED)
+        return
+
     tier_cfg = await config.tier_for_user(user_obj)
     limit = override if override is not None else tier_cfg.daily_limit
 

@@ -7,7 +7,9 @@ be in ``ADMIN_IDS``. Editable config is read/written via the ConfigStore.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +34,12 @@ from .schemas import (
     AdminUser,
     AdminUsersOut,
     AdminUserUpdate,
+    AnalyticsOut,
+    BroadcastIn,
+    BroadcastOut,
+    DayCount,
     HealthOut,
+    ModelCount,
     InvoiceIn,
     InvoiceOut,
     MeOut,
@@ -62,6 +69,7 @@ from .schemas import (
 )
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
 def _spec_out(m: ModelSpec) -> ModelSpecOut:
@@ -292,6 +300,8 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         disabled_models=sorted(await config.disabled_models()),
         all_models=[_spec_out(m) for m in seen.values()],
         user_roles_enabled=await config.user_roles_enabled(),
+        generation_paused=await config.generation_paused(),
+        max_tokens=await config.max_tokens(),
     )
 
 
@@ -315,6 +325,10 @@ async def set_runtime(
         await config.set_disabled_models(body.disabled_models)
     if body.user_roles_enabled is not None:
         await config.set_user_roles_enabled(body.user_roles_enabled)
+    if body.generation_paused is not None:
+        await config.set_generation_paused(body.generation_paused)
+    if body.max_tokens is not None:
+        await config.set_max_tokens(body.max_tokens)
     return await _runtime_out(config)
 
 
@@ -482,6 +496,60 @@ async def admin_update_user(
     await session.flush()
     user = await repo.get_user(session, user_id) or user
     return await _admin_user(session, config, user)
+
+
+_BROADCAST_TASKS: set[asyncio.Task[None]] = set()
+
+
+async def _run_broadcast(bot, ids: list[int], text: str) -> None:  # type: ignore[no-untyped-def]
+    """Throttled background send (~20 msg/s); per-user failures are ignored."""
+    sent = failed = 0
+    for uid in ids:
+        try:
+            await bot.send_message(uid, text)
+            sent += 1
+        except Exception:  # noqa: BLE001 - user blocked the bot, deactivated, etc.
+            failed += 1
+        await asyncio.sleep(0.05)
+    log.info("broadcast done: sent=%d failed=%d", sent, failed)
+
+
+@router.post("/admin/broadcast", response_model=BroadcastOut)
+async def admin_broadcast(
+    body: BroadcastIn,
+    _admin: TelegramUser = Depends(require_admin),
+    bot=Depends(get_bot),  # type: ignore[no-untyped-def]
+    session: AsyncSession = Depends(db_session),
+) -> BroadcastOut:
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="text is empty"
+        )
+    if bot is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Bot is not configured.",
+        )
+    ids = await repo.all_user_ids(session, tier=body.tier)
+    task = asyncio.create_task(_run_broadcast(bot, ids, text))
+    _BROADCAST_TASKS.add(task)
+    task.add_done_callback(_BROADCAST_TASKS.discard)
+    return BroadcastOut(queued=len(ids))
+
+
+@router.get("/admin/analytics", response_model=AnalyticsOut)
+async def admin_analytics(
+    days: int = Query(default=14, ge=1, le=90),
+    _admin: TelegramUser = Depends(require_admin),
+    session: AsyncSession = Depends(db_session),
+) -> AnalyticsOut:
+    return AnalyticsOut(
+        messages=[DayCount(**d) for d in await repo.messages_per_day(session, days)],
+        new_users=[DayCount(**d) for d in await repo.new_users_per_day(session, days)],
+        model_mix=[ModelCount(**m) for m in await repo.model_mix(session, days)],
+        revenue_stars=await repo.revenue_stars(session),
+    )
 
 
 @router.get("/admin/stats", response_model=AdminStatsOut)

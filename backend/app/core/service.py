@@ -130,8 +130,9 @@ class ChatService:
             user_text=user_text,
             user_role=user_role,
         )
+        max_tokens = await self.config.max_tokens() or None
         completion = await self.router.complete(
-            messages, await self.resolve_pool(user, tier)
+            messages, await self.resolve_pool(user, tier), max_tokens=max_tokens
         )
 
         # 5. Persist exchange + consume quota.

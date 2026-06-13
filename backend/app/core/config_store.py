@@ -195,6 +195,32 @@ class ConfigStore:
                     session, repo.USER_ROLES_KEY, "true" if on else "false"
                 )
 
+    async def generation_paused(self) -> bool:
+        """Global kill-switch: when true, the bot stops generating replies."""
+        return (await self._get_str(repo.GENERATION_PAUSED_KEY)) == "true"
+
+    async def set_generation_paused(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.GENERATION_PAUSED_KEY, "true" if on else "false"
+                )
+
+    async def max_tokens(self) -> int:
+        """Cap on tokens per reply (0 = provider default / unlimited)."""
+        stored = await self._get_str(repo.MAX_TOKENS_KEY)
+        try:
+            return max(0, int(stored)) if stored else 0
+        except ValueError:
+            return 0
+
+    async def set_max_tokens(self, value: int) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.MAX_TOKENS_KEY, str(max(0, value))
+                )
+
     async def disabled_models(self) -> set[str]:
         data = await self._get_json(repo.DISABLED_MODELS_KEY)
         return set(data) if isinstance(data, list) else set()
