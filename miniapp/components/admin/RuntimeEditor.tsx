@@ -17,7 +17,26 @@ import type { RuntimeResponse } from "@/lib/types";
 import { Card, SectionTitle } from "../Card";
 import { CardSkeleton } from "../Skeleton";
 import { ErrorState } from "../ErrorState";
-import { Button, Field, Input, SaveMessage, Toggle, type SaveStatus } from "../ui";
+import {
+  Button,
+  Field,
+  Input,
+  SaveMessage,
+  Select,
+  Toggle,
+  type SaveStatus,
+  type SelectOption,
+} from "../ui";
+
+const PROVIDER_LABELS: Record<string, string> = {
+  openrouter: "OpenRouter",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+};
+
+function providerLabel(p: string): string {
+  return PROVIDER_LABELS[p] ?? p.charAt(0).toUpperCase() + p.slice(1);
+}
 
 /** Voice transcription toggle + per-model rotation kill-switches. */
 export function RuntimeEditor() {
@@ -38,7 +57,11 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [paused, setPaused] = useState(initial.generation_paused);
   const [maxTokens, setMaxTokens] = useState<string>(String(initial.max_tokens));
   const [vision, setVision] = useState(initial.vision_enabled);
-  const [visionModel, setVisionModel] = useState(initial.vision_model);
+  // Vision model is selected as "provider:id" (ids may contain ':', so we only
+  // split on the first colon when saving).
+  const [visionSel, setVisionSel] = useState(
+    `${initial.vision_provider}:${initial.vision_model}`,
+  );
   const [visionPremiumOnly, setVisionPremiumOnly] = useState(
     initial.vision_premium_only,
   );
@@ -50,6 +73,19 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   );
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [message, setMessage] = useState("");
+
+  // Options for the vision-model dropdown: every configured model, keyed by
+  // "provider:id", with the current selection guaranteed to be present.
+  const visionOptions: SelectOption<string>[] = [];
+  const seenVision = new Set<string>();
+  const addVisionOption = (provider: string, id: string, label?: string) => {
+    const v = `${provider}:${id}`;
+    if (seenVision.has(v)) return;
+    seenVision.add(v);
+    visionOptions.push({ value: v, label: label || id, hint: providerLabel(provider) });
+  };
+  addVisionOption(initial.vision_provider, initial.vision_model);
+  for (const m of initial.all_models) addVisionOption(m.provider, m.id, m.label);
 
   function toggleModel(id: string) {
     setDisabled((prev) => {
@@ -66,6 +102,9 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
     // Clamp to a non-negative integer; blank/invalid falls back to 0 (default).
     const parsed = Math.max(0, Math.floor(Number(maxTokens)));
     const tokens = Number.isFinite(parsed) ? parsed : 0;
+    const colon = visionSel.indexOf(":");
+    const visionProvider = colon >= 0 ? visionSel.slice(0, colon) : "openrouter";
+    const visionModelId = colon >= 0 ? visionSel.slice(colon + 1) : visionSel;
     try {
       const res = await api.setRuntime({
         voice_enabled: voice,
@@ -74,7 +113,8 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         generation_paused: paused,
         max_tokens: tokens,
         vision_enabled: vision,
-        vision_model: visionModel.trim() || undefined,
+        vision_model: visionModelId.trim() || undefined,
+        vision_provider: visionProvider,
         vision_premium_only: visionPremiumOnly,
         welcome_message: welcome,
         brand_name: brandName,
@@ -85,7 +125,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       setPaused(res.generation_paused);
       setMaxTokens(String(res.max_tokens));
       setVision(res.vision_enabled);
-      setVisionModel(res.vision_model);
+      setVisionSel(`${res.vision_provider}:${res.vision_model}`);
       setVisionPremiumOnly(res.vision_premium_only);
       setWelcome(res.welcome_message);
       setBrandName(res.brand_name);
@@ -197,18 +237,17 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
             </div>
             <div className="mt-3">
               <Field label="Vision model — which AI reads the photos">
-                <Input
-                  value={visionModel}
-                  onChange={(e) => setVisionModel(e.target.value)}
-                  placeholder="google/gemma-4-31b-it:free"
-                  aria-label="Vision model"
+                <Select
+                  options={visionOptions}
+                  value={visionSel}
+                  onChange={setVisionSel}
+                  placeholder="Pick a model…"
                 />
               </Field>
               <p className="mt-1 text-xs text-muted">
-                Not every model can &ldquo;see&rdquo; images — pick a
-                vision-capable one (OpenRouter id). The default is free and works
-                out of the box; for sharper results try{" "}
-                <code>openai/gpt-4o</code> or <code>google/gemini-2.5-pro</code>.
+                Pick a vision-capable model (e.g. GPT-4o, Gemini). If it&rsquo;s
+                busy, the bot falls back to the user&rsquo;s other models
+                automatically.
               </p>
             </div>
           </>

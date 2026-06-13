@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Crown, Cpu, CalendarClock, Sparkles } from "lucide-react";
 import type { TierInfo, User } from "@/lib/types";
 import { formatDate } from "@/lib/format";
@@ -50,37 +49,24 @@ export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
   const isPremium = user.is_premium || user.tier === "premium";
   const model = user.preferred_model ?? "Auto";
   const showUpgrade = !isPremium && onUpgrade;
+  const initial =
+    user.first_name?.trim()?.[0] || user.username?.trim()?.[0] || "U";
 
   return (
-    <section className="relative overflow-hidden rounded-card-lg bg-hero p-5 text-white shadow-pop">
-      {/* Hero background image + legibility scrim */}
-      <Image
-        src="/brand/hero.png"
-        alt=""
+    <section className="relative overflow-hidden rounded-card-lg bg-grad-primary p-5 text-white shadow-pop">
+      {/* Soft decorative glows for depth (no heavy photo background) */}
+      <div
         aria-hidden
-        fill
-        priority
-        className="pointer-events-none select-none object-cover"
+        className="pointer-events-none absolute -right-12 -top-14 h-44 w-44 rounded-full bg-white/15 blur-2xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/40 via-brand/20 to-black/30"
-      />
-      {/* Soft decorative glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/15 blur-2xl"
+        className="pointer-events-none absolute -bottom-16 -left-10 h-44 w-44 rounded-full bg-accent/25 blur-3xl"
       />
 
       <div className="relative flex items-center gap-4">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white/20 shadow-inner ring-2 ring-white/60 backdrop-blur">
-          <Image
-            src="/brand/avatar.png"
-            alt={user.first_name}
-            width={64}
-            height={64}
-            className="h-full w-full object-cover"
-          />
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold uppercase text-white shadow-soft ring-1 ring-white/40 backdrop-blur">
+          {initial}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

@@ -110,12 +110,26 @@ class ChatService:
     async def reply_image(
         self, user: User, image_data_url: str, caption: str
     ) -> Completion:
-        """Answer a photo using the configured vision model. Raises LLMError."""
-        spec = await self._resolve_spec(await self.config.vision_model())
-        if spec is None:
-            raise LLMError("Vision model's provider is not configured.")
-
+        """Answer a photo using the configured vision model, falling back onto
+        the user's normal model pool if it's unavailable. Raises LLMError."""
         tg_id = user.id
+        tier = await self.config.tier_for_user(user)
+
+        # Vision pool: the admin-chosen vision model first, then the user's
+        # regular models as fallbacks (so a rate-limited free vision model rolls
+        # over onto premium models that carry the operator's own API keys).
+        # Non-vision models simply error out and the router moves to the next.
+        pool: list[ResolvedSpec] = []
+        primary = await self._resolve_spec(await self.config.vision_model())
+        if primary is not None:
+            pool.append(primary)
+        for spec in await self.resolve_pool(user, tier):
+            if not any(
+                spec.model == p.model and spec.provider == p.provider for p in pool
+            ):
+                pool.append(spec)
+        if not pool:
+            raise LLMError("Vision model's provider is not configured.")
         ask = caption.strip() or "Describe this image and answer about it helpfully."
         context = await self.memory.recall(tg_id, caption or "photo")
         async with self.db.session() as session:
