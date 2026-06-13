@@ -9,6 +9,7 @@ every model in the pool is unavailable.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 
@@ -98,17 +99,26 @@ async def respond(
         await message.answer(texts.limit_reached(tier, limit))
         return
 
-    # Immediate feedback: a placeholder we later edit into the answer/error.
+    # Immediate feedback: a placeholder we always resolve into an answer or a
+    # clear error — it must never be left hanging as "Thinking…".
     placeholder = await message.answer(texts.THINKING)
+    timeout = service.settings.reply_timeout
 
     try:
         async with ChatActionSender(
             bot=message.bot, chat_id=message.chat.id, action=ChatAction.TYPING
         ):
-            completion = await service.reply(user_obj, user_text)
-    except LLMError as exc:
-        log.warning("generation failed for tg=%s: %s", tg.id, exc)
+            completion = await asyncio.wait_for(
+                service.reply(user_obj, user_text), timeout=timeout
+            )
+    except (LLMError, asyncio.TimeoutError) as exc:
+        # No model answered in time / all busy — nudge free users to upgrade.
+        log.warning("generation unavailable for tg=%s: %r", tg.id, exc)
         await _safe_edit(placeholder, texts.all_busy(is_premium))
+        return
+    except Exception:  # noqa: BLE001 - never leave the user hanging
+        log.exception("unexpected error generating reply for tg=%s", tg.id)
+        await _safe_edit(placeholder, texts.ERROR_GENERIC)
         return
 
     chunks = _split_message(completion.text)

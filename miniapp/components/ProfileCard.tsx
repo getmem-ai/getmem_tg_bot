@@ -1,11 +1,14 @@
-import { Crown, Cpu, CalendarClock } from "lucide-react";
+import { Crown, Cpu, CalendarClock, Sparkles } from "lucide-react";
 import type { TierInfo, User } from "@/lib/types";
 import { formatDate } from "@/lib/format";
+import { haptic } from "@/lib/telegram";
 import { Card } from "./Card";
 
 interface ProfileCardProps {
   user: User;
   tier?: TierInfo;
+  /** When provided and the user is on the free plan, shows an Upgrade button. */
+  onUpgrade?: () => void;
 }
 
 function TierBadge({ user }: { user: User }) {
@@ -24,10 +27,11 @@ function TierBadge({ user }: { user: User }) {
   );
 }
 
-export function ProfileCard({ user, tier }: ProfileCardProps) {
+export function ProfileCard({ user, tier, onUpgrade }: ProfileCardProps) {
   const isPremium = user.is_premium || user.tier === "premium";
   const initial = (user.first_name || "?").charAt(0).toUpperCase();
   const model = user.preferred_model ?? "Auto";
+  const showUpgrade = !isPremium && onUpgrade;
 
   return (
     <Card>
@@ -75,6 +79,19 @@ export function ProfileCard({ user, tier }: ProfileCardProps) {
           </div>
         )}
       </div>
+
+      {showUpgrade && (
+        <button
+          onClick={() => {
+            haptic("medium");
+            onUpgrade?.();
+          }}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99]"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden />
+          Upgrade to Premium
+        </button>
+      )}
     </Card>
   );
 }

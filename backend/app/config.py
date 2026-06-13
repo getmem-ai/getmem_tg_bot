@@ -108,6 +108,7 @@ class Settings:
     free_models: list[str]
     premium_models: list[str]
     request_timeout: float
+    reply_timeout: float
     app_url: str
     app_name: str
 
@@ -196,6 +197,7 @@ def load_settings(*, require_bot: bool = True, require_openrouter: bool = True) 
         premium_models=_split(os.getenv("PREMIUM_MODELS"))
         or list(DEFAULT_PREMIUM_MODELS),
         request_timeout=float(os.getenv("REQUEST_TIMEOUT", "60")),
+        reply_timeout=float(os.getenv("REPLY_TIMEOUT", "120")),
         app_url=os.getenv("APP_URL", "https://github.com/getmem-ai").strip(),
         app_name=os.getenv("APP_NAME", "GetMem Telegram Bot").strip(),
         getmem_api_key=os.getenv("GETMEM_API_KEY", "").strip(),

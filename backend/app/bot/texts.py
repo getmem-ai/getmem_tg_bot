@@ -143,6 +143,9 @@ def forget_done(count: int) -> str:
 
 FORGET_CANCEL = "Cancelled — your memory is safe."
 THINKING = "💭 Thinking…"
+ERROR_GENERIC = (
+    "😕 Something went wrong on my side. Please try again in a moment."
+)
 
 
 def all_busy(is_premium: bool) -> str:

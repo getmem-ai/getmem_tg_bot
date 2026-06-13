@@ -80,7 +80,7 @@ function Shell() {
     <>
       <main className="mx-auto w-full max-w-md px-4 pt-5 pb-tabbar">
         <div key={tab} className="animate-fade-in">
-          {tab === "home" && <HomeTab me={me} />}
+          {tab === "home" && <HomeTab me={me} onUpgrade={() => setTab("settings")} />}
           {tab === "activity" && <ActivityTab />}
           {tab === "settings" && <SettingsTabView me={me} />}
           {tab === "admin" && isAdmin && <AdminTab />}
@@ -100,8 +100,16 @@ function Shell() {
 // Home
 // ---------------------------------------------------------------------------
 
-function HomeTab({ me }: { me: ReturnType<typeof useApi<MeResponse>> }) {
+function HomeTab({
+  me,
+  onUpgrade,
+}: {
+  me: ReturnType<typeof useApi<MeResponse>>;
+  onUpgrade?: () => void;
+}) {
   const usage = useApi<UsageSeriesResponse>(() => api.usage(USAGE_DAYS));
+  // Only offer upgrade when there's actually a paid plan configured.
+  const canUpgrade = (me.data?.upgrade_tiers?.length ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,7 +120,11 @@ function HomeTab({ me }: { me: ReturnType<typeof useApi<MeResponse>> }) {
         </>
       ) : (
         <>
-          <ProfileCard user={me.data.user} tier={me.data.tier} />
+          <ProfileCard
+            user={me.data.user}
+            tier={me.data.tier}
+            onUpgrade={canUpgrade ? onUpgrade : undefined}
+          />
           <UsageRing usage={me.data.usage} />
         </>
       )}
