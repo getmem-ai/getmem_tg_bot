@@ -1,0 +1,18 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+tests/
+*.md
+!README.md
+.env
+.env.*
+data/
+# Vendored SDK dev cruft — keep src, drop the rest.
+vendor/getmem-ai/.venv/
+vendor/getmem-ai/tests/
+vendor/getmem-ai/examples/
+vendor/getmem-ai/.*_cache/

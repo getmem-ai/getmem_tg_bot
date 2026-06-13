@@ -1,16 +1,104 @@
-# Default deployment: long polling. No domain, no open ports, no TLS required.
-# 1. cp .env.example .env  &&  edit .env
-# 2. docker compose up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+#  LOCAL / DEV deployment.
+#  Reads config from a .env file (env_file), builds images from source, and runs
+#  the bot in long-polling mode (no domain/TLS needed).
+#
+#    cp .env.example .env   # then fill it in
+#    docker compose up -d --build
+#
+#  Add voice transcription (heavier, optional):
+#    docker compose --profile voice up -d --build
+#
+#  For a public domain + HTTPS, see deploy/ (prod & Dokploy variants).
+# ─────────────────────────────────────────────────────────────────────────────
 services:
-  bot:
-    build: .
-    image: getmem-telegram-bot:latest
-    container_name: getmem-bot
+  db:
+    image: postgres:16-alpine
+    container_name: getmem-db
     restart: unless-stopped
-    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-getmem}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-getmem}
+      POSTGRES_DB: ${POSTGRES_DB:-getmem_bot}
     volumes:
-      - bot-data:/app/data
-    # Long polling makes outbound connections only — nothing to expose.
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-getmem} -d ${POSTGRES_DB:-getmem_bot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: apply DB migrations, then exit. Bot & API wait for it.
+  migrate:
+    build: ./backend
+    image: getmem-backend:latest
+    container_name: getmem-migrate
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  bot:
+    build: ./backend
+    image: getmem-backend:latest
+    container_name: getmem-bot
+    command: ["python", "-m", "app.entrypoints.bot"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    image: getmem-backend:latest
+    container_name: getmem-api
+    command: ["python", "-m", "app.entrypoints.api"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  miniapp:
+    build:
+      context: ./miniapp
+      args:
+        # Build-time inlined into the Next.js bundle.
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8000/api}
+    image: getmem-miniapp:latest
+    container_name: getmem-miniapp
+    ports:
+      - "${MINIAPP_PORT:-3000}:3000"
+    restart: unless-stopped
+
+  transcriber:
+    build: ./transcriber
+    image: getmem-transcriber:latest
+    container_name: getmem-transcriber
+    profiles: ["voice"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_WARMUP: ${WHISPER_WARMUP:-false}
+    volumes:
+      - whisper-models:/models
+    restart: unless-stopped
 
 volumes:
-  bot-data:
+  pgdata:
+  whisper-models:

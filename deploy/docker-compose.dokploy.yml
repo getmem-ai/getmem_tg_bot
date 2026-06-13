@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  DOKPLOY deployment.
+#
+#  Differences from the others:
+#   • No .env file is mounted. Dokploy injects configuration as environment
+#     variables (set them in the Dokploy app's "Environment" tab); they are
+#     referenced below via ${VAR} interpolation.
+#   • No Caddy. Dokploy's built-in Traefik proxy provides domains + automatic
+#     HTTPS — assign a domain to the `miniapp` (port 3000) and `api` (port 8000)
+#     services in the Dokploy UI.
+#   • The bot uses long polling (no webhook/domain needed for it).
+#
+#  In Dokploy: create a Compose service pointing at this file, paste your
+#  environment, deploy, then map domains:
+#     miniapp  → https://app.example.com         (container port 3000)
+#     api      → https://api.example.com          (container port 8000)
+#  and set NEXT_PUBLIC_API_BASE=https://api.example.com/api,
+#          MINIAPP_URL=https://app.example.com
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}}
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  bot:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["python", "-m", "app.entrypoints.bot"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}}
+      BOT_TOKEN: ${BOT_TOKEN}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GETMEM_API_KEY: ${GETMEM_API_KEY}
+      ADMIN_IDS: ${ADMIN_IDS:-}
+      MINIAPP_URL: ${MINIAPP_URL:-}
+      FREE_DAILY_LIMIT: ${FREE_DAILY_LIMIT:-30}
+      PREMIUM_DAILY_LIMIT: ${PREMIUM_DAILY_LIMIT:-500}
+      PREMIUM_PRICE_STARS: ${PREMIUM_PRICE_STARS:-250}
+      PREMIUM_PERIOD_DAYS: ${PREMIUM_PERIOD_DAYS:-30}
+      ENABLE_VOICE: ${ENABLE_VOICE:-false}
+      TRANSCRIBER_URL: ${TRANSCRIBER_URL:-http://transcriber:8001}
+      SYSTEM_PROMPT: ${SYSTEM_PROMPT:-}
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  api:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["python", "-m", "app.entrypoints.api"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}}
+      BOT_TOKEN: ${BOT_TOKEN}
+      ADMIN_IDS: ${ADMIN_IDS:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    expose: ["8000"]
+    restart: unless-stopped
+
+  miniapp:
+    build:
+      context: ../miniapp
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE}
+    image: getmem-miniapp:latest
+    expose: ["3000"]
+    restart: unless-stopped
+
+  transcriber:
+    build: { context: ../transcriber }
+    image: getmem-transcriber:latest
+    profiles: ["voice"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_WARMUP: ${WHISPER_WARMUP:-true}
+    volumes:
+      - whisper-models:/models
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  whisper-models:

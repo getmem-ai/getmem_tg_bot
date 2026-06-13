@@ -16,7 +16,17 @@ dist/
 .venv/
 venv/
 .uv/
-uv.lock
+
+# Node / Next.js (miniapp)
+node_modules/
+.next/
+out/
+.npm/
+*.tsbuildinfo
+
+# Whisper model cache
+models/
+*.bin
 
 # Tooling caches
 .mypy_cache/

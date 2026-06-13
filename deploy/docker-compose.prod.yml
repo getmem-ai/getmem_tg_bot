@@ -1,45 +1,98 @@
-# Production deployment with a public domain + automatic HTTPS.
+# ─────────────────────────────────────────────────────────────────────────────
+#  PRODUCTION (self-managed VPS) — single domain + automatic HTTPS via Caddy.
+#  Reads config from ../.env. Bot runs in WEBHOOK mode behind Caddy, which
+#  obtains/renews a Let's Encrypt cert for $DOMAIN automatically.
 #
-# This runs the bot in WEBHOOK mode behind Caddy, which obtains and renews a
-# Let's Encrypt TLS certificate for your domain automatically — no certbot, no
-# manual cert files.
+#  Required in .env (in addition to the usual keys):
+#    DOMAIN=bot.example.com
+#    ACME_EMAIL=you@example.com
+#    WEBHOOK_URL=https://bot.example.com
+#    WEBHOOK_SECRET=<openssl rand -hex 32>
+#    MINIAPP_URL=https://bot.example.com
+#    NEXT_PUBLIC_API_BASE=/api
 #
-# Prerequisites:
-#   • A domain (e.g. bot.example.com) whose A record points at this server.
-#   • Ports 80 and 443 open to the internet.
-#   • .env filled in, including:
-#         WEBHOOK_URL=https://bot.example.com
-#         WEBHOOK_SECRET=<a long random string>
-#         DOMAIN=bot.example.com          # used by Caddy below
-#         ACME_EMAIL=you@example.com      # Let's Encrypt contact
-#
-# Run from the repo root:
-#   docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
-#
+#  Run from the repo root:
+#    docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+#    # add voice:  ... --profile voice up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
 services:
-  bot:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-    image: getmem-telegram-bot:latest
-    container_name: getmem-bot
+  db:
+    image: postgres:16-alpine
     restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-getmem}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-getmem}
+      POSTGRES_DB: ${POSTGRES_DB:-getmem_bot}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-getmem} -d ${POSTGRES_DB:-getmem_bot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["alembic", "upgrade", "head"]
+    env_file: ../.env
+    environment: { POSTGRES_HOST: db }
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  bot:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["python", "-m", "app.entrypoints.bot"]
     env_file: ../.env
     environment:
-      # Bind the in-container web server; Caddy proxies to it.
+      POSTGRES_HOST: db
       WEB_HOST: 0.0.0.0
-      WEB_PORT: 8080
+      WEB_PORT: "8080"
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    expose: ["8080"]
+    restart: unless-stopped
+
+  api:
+    build: { context: .., dockerfile: backend/Dockerfile }
+    image: getmem-backend:latest
+    command: ["python", "-m", "app.entrypoints.api"]
+    env_file: ../.env
+    environment: { POSTGRES_HOST: db }
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    expose: ["8000"]
+    restart: unless-stopped
+
+  miniapp:
+    build:
+      context: ../miniapp
+      args:
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+    image: getmem-miniapp:latest
+    expose: ["3000"]
+    restart: unless-stopped
+
+  transcriber:
+    build: { context: ../transcriber }
+    image: getmem-transcriber:latest
+    profiles: ["voice"]
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_WARMUP: ${WHISPER_WARMUP:-true}
     volumes:
-      - bot-data:/app/data
-    expose:
-      - "8080"
+      - whisper-models:/models
+    restart: unless-stopped
 
   caddy:
     image: caddy:2-alpine
-    container_name: getmem-caddy
     restart: unless-stopped
-    depends_on:
-      - bot
+    depends_on: [miniapp, api, bot]
     ports:
       - "80:80"
       - "443:443"
@@ -52,6 +105,7 @@ services:
       - caddy-config:/config
 
 volumes:
-  bot-data:
+  pgdata:
+  whisper-models:
   caddy-data:
   caddy-config:

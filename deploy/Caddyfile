@@ -1,5 +1,10 @@
 # Caddy automatically provisions and renews a Let's Encrypt certificate for
-# {$DOMAIN} and reverse-proxies Telegram's webhook calls to the bot container.
+# {$DOMAIN} and routes a single domain to all three services:
+#
+#   https://{$DOMAIN}/api/*    → FastAPI  (Mini App backend)
+#   https://{$DOMAIN}/webhook* → bot      (Telegram webhook)
+#   https://{$DOMAIN}/*        → Next.js  (Mini App frontend)
+#
 {
 	email {$ACME_EMAIL}
 }
@@ -7,10 +12,18 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	# Telegram delivers updates to /webhook (see WEBHOOK_PATH). Proxy to the bot.
-	reverse_proxy bot:8080
+	handle /api/* {
+		reverse_proxy api:8000
+	}
 
-	# Basic hardening headers.
+	handle /webhook* {
+		reverse_proxy bot:8080
+	}
+
+	handle {
+		reverse_proxy miniapp:3000
+	}
+
 	header {
 		Strict-Transport-Security "max-age=31536000;"
 		X-Content-Type-Options "nosniff"
