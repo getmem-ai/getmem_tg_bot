@@ -12,9 +12,11 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import re
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message
 from aiogram.utils.chat_action import ChatActionSender
 
@@ -22,6 +24,7 @@ from ...config import Settings
 from ...core import ChatService, ConfigStore, LLMError, Transcriber
 from ...db import Database, repo
 from .. import texts
+from ..formatting import to_telegram_html
 
 router = Router(name="chat")
 log = logging.getLogger(__name__)
@@ -121,10 +124,12 @@ async def respond(
         await _safe_edit(placeholder, texts.ERROR_GENERIC)
         return
 
-    chunks = _split_message(completion.text)
+    # The model replies in Markdown; render it to Telegram-safe HTML.
+    html_text = to_telegram_html(completion.text)
+    chunks = _split_message(html_text)
     await _safe_edit(placeholder, chunks[0])
     for chunk in chunks[1:]:
-        await message.answer(chunk)
+        await _send_html(message, chunk)
 
 
 async def _transcribe_message(message: Message, transcriber: Transcriber) -> str:
@@ -146,11 +151,30 @@ async def _transcribe_message(message: Message, transcriber: Transcriber) -> str
         return ""
 
 
+def _strip_tags(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text)
+
+
 async def _safe_edit(message: Message, text: str) -> None:
+    """Edit with HTML; on a parse/edit failure, fall back to plain text."""
     try:
         await message.edit_text(text)
-    except Exception:  # noqa: BLE001 - fall back to a fresh message
+        return
+    except TelegramBadRequest:
+        pass
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        await message.edit_text(_strip_tags(text), parse_mode=None)
+    except Exception:  # noqa: BLE001 - last resort: a fresh plain message
+        await message.answer(_strip_tags(text), parse_mode=None)
+
+
+async def _send_html(message: Message, text: str) -> None:
+    try:
         await message.answer(text)
+    except TelegramBadRequest:
+        await message.answer(_strip_tags(text), parse_mode=None)
 
 
 def _split_message(text: str) -> list[str]:

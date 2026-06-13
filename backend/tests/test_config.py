@@ -48,7 +48,8 @@ def test_context_builder_persona_and_memory() -> None:
         history=[{"role": "user", "content": "earlier"}],
         user_text="how am I doing?",
     )
-    assert msgs[0] == {"role": "system", "content": "You are a finance bot."}
+    assert msgs[0]["role"] == "system"
+    assert msgs[0]["content"].startswith("You are a finance bot.")
     # Memory goes into a separate dynamic system message (not the persona).
     assert msgs[1]["role"] == "system"
     assert "saves 20%" in msgs[1]["content"]
@@ -60,7 +61,7 @@ def test_context_builder_no_memory() -> None:
     msgs = ContextBuilder.build(
         system_prompt="P", memory_context="", history=[], user_text="hi"
     )
-    assert msgs[0]["content"] == "P"
+    assert msgs[0]["content"].startswith("P")
     assert len(msgs) == 2
 
 
@@ -73,7 +74,8 @@ def test_context_builder_account_info_is_separate_message() -> None:
         user_text="how many do I have left?",
     )
     # Persona stays its own (cache-friendly) message; account info is separate.
-    assert msgs[0] == {"role": "system", "content": "Persona"}
+    assert msgs[0]["role"] == "system"
+    assert msgs[0]["content"].startswith("Persona")
     assert msgs[1]["role"] == "system"
     assert "remaining today: 12" in msgs[1]["content"]
     assert msgs[-1]["content"] == "how many do I have left?"

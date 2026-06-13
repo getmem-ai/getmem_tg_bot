@@ -18,6 +18,12 @@ Stateless so it never holds a stale prompt.
 
 from __future__ import annotations
 
+_FORMATTING_NOTE = (
+    "Formatting: this is a Telegram chat. Use light Markdown only — short "
+    "**bold**, _italic_, `code`, fenced code blocks, and '- ' bullet lists. "
+    "Do NOT use Markdown tables or '#' headings; present comparisons as short "
+    "bulleted lists instead. Keep replies concise and easy to read on a phone."
+)
 _ACCOUNT_HEADER = (
     "# This user's account & usage right now\n"
     "Use this to answer questions about their plan, limits, remaining messages "
@@ -54,7 +60,8 @@ class ContextBuilder:
         user_text: str,
         account_info: str = "",
     ) -> list[dict[str, str]]:
-        messages = [{"role": "system", "content": system_prompt.strip()}]
+        persona = f"{system_prompt.strip()}\n\n{_FORMATTING_NOTE}"
+        messages = [{"role": "system", "content": persona}]
         dynamic = cls._dynamic_message(account_info, memory_context)
         if dynamic is not None:
             messages.append(dynamic)
