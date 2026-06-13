@@ -79,9 +79,19 @@ class ChatService:
         specs: list[ResolvedSpec] = []
         for m in models:
             p = providers.get(m.provider)
-            if p is None or not p.enabled or not p.api_key:
+            if p is None or not p.usable:
                 continue
-            specs.append(ResolvedSpec(provider=m.provider, model=m.id, api_key=p.api_key))
+            specs.append(
+                ResolvedSpec(
+                    provider=p.name,
+                    model=m.id,
+                    # Keyless providers (Ollama) get a placeholder so the router
+                    # treats them as usable.
+                    api_key=p.api_key or ("ollama" if not p.requires_key else ""),
+                    kind=p.kind,
+                    base_url=p.base_url,
+                )
+            )
         return specs
 
     async def reply(self, user: User, user_text: str) -> Completion:

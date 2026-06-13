@@ -14,6 +14,7 @@ the API layer masks them.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 
 from ..config import Settings
@@ -41,16 +42,22 @@ class ModelSpec:
 @dataclass
 class Provider:
     name: str
-    kind: str  # openrouter | openai | anthropic
+    kind: str  # openrouter | openai | anthropic | groq | deepseek | mistral | gemini | ollama
     enabled: bool
     is_default: bool
     api_key: str
+    base_url: str = ""
     models: list[str] = field(default_factory=list)
     note: str | None = None
+    requires_key: bool = True  # ollama runs without an API key
 
     @property
     def has_key(self) -> bool:
         return bool(self.api_key)
+
+    @property
+    def usable(self) -> bool:
+        return self.enabled and (bool(self.api_key) or not self.requires_key)
 
 
 @dataclass
@@ -67,9 +74,49 @@ class TierConfig:
         return self.price_stars > 0 and self.key != "free"
 
 
-# Sensible direct-provider model defaults (admin can edit).
-_DEFAULT_OPENAI_MODELS = ["gpt-4o", "gpt-4o-mini"]
-_DEFAULT_ANTHROPIC_MODELS = ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"]
+# Direct (non-OpenRouter) providers. All except Anthropic speak the OpenAI
+# Chat Completions API, so they share one adapter — only the base_url differs.
+# `models` are sensible defaults the admin can edit in the dashboard.
+# (name, kind, base_url, default_models, note, requires_key)
+_DIRECT_PROVIDERS: list[tuple[str, str, str, list[str], str, bool]] = [
+    (
+        "openai", "openai", "https://api.openai.com/v1",
+        ["gpt-4o", "gpt-4o-mini"],
+        "Direct OpenAI. Add your API key and pick models.", True,
+    ),
+    (
+        "anthropic", "anthropic", "",
+        ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+        "Direct Anthropic (Claude). Add your API key and pick models.", True,
+    ),
+    (
+        "groq", "groq", "https://api.groq.com/openai/v1",
+        ["llama-3.3-70b-versatile", "openai/gpt-oss-120b"],
+        "Groq — very fast inference, OpenAI-compatible.", True,
+    ),
+    (
+        "deepseek", "deepseek", "https://api.deepseek.com/v1",
+        ["deepseek-chat", "deepseek-reasoner"],
+        "DeepSeek direct (OpenAI-compatible).", True,
+    ),
+    (
+        "mistral", "mistral", "https://api.mistral.ai/v1",
+        ["mistral-large-latest", "mistral-small-latest"],
+        "Mistral direct (OpenAI-compatible).", True,
+    ),
+    (
+        "gemini", "gemini",
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        ["gemini-2.5-flash", "gemini-2.5-pro"],
+        "Google Gemini via its OpenAI-compatible endpoint.", True,
+    ),
+    (
+        "ollama", "ollama",
+        os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/v1"),
+        ["llama3.1", "qwen2.5"],
+        "Local models via Ollama — no API key required.", False,
+    ),
+]
 
 
 class ConfigStore:
@@ -161,44 +208,47 @@ class ConfigStore:
         stored = await self._get_json(repo.PROVIDERS_KEY)
         stored = stored if isinstance(stored, dict) else {}
 
-        def merged(name: str, kind: str, *, default_models: list[str]) -> Provider:
-            s = stored.get(name, {}) if isinstance(stored.get(name), dict) else {}
-            return Provider(
+        def entry(name: str) -> dict:
+            e = stored.get(name)
+            return e if isinstance(e, dict) else {}
+
+        # OpenRouter is the always-on default; its key comes from the env, and
+        # its catalog defaults to the configured free+premium model slugs.
+        oe = entry("openrouter")
+        result: dict[str, Provider] = {
+            "openrouter": Provider(
+                name="openrouter",
+                kind="openrouter",
+                enabled=True,
+                is_default=True,
+                api_key=self._settings.openrouter_api_key,
+                base_url=self._settings.openrouter_base_url,
+                models=list(
+                    oe.get(
+                        "models",
+                        _dedupe(
+                            self._settings.free_models + self._settings.premium_models
+                        ),
+                    )
+                ),
+                note="Default provider — set OPENROUTER_API_KEY in env.",
+                requires_key=True,
+            )
+        }
+        for name, kind, base_url, default_models, note, requires_key in _DIRECT_PROVIDERS:
+            s = entry(name)
+            result[name] = Provider(
                 name=name,
                 kind=kind,
                 enabled=bool(s.get("enabled", False)),
                 is_default=False,
                 api_key=str(s.get("api_key", "") or ""),
+                base_url=base_url,
                 models=list(s.get("models", default_models)),
+                note=note,
+                requires_key=requires_key,
             )
-
-        # OpenRouter is the always-on default; its key comes from the env, and
-        # its catalog defaults to the configured free+premium model slugs.
-        or_stored = stored.get("openrouter", {}) if isinstance(stored.get("openrouter"), dict) else {}
-        openrouter_models = list(
-            or_stored.get(
-                "models",
-                _dedupe(self._settings.free_models + self._settings.premium_models),
-            )
-        )
-        openrouter = Provider(
-            name="openrouter",
-            kind="openrouter",
-            enabled=True,
-            is_default=True,
-            api_key=self._settings.openrouter_api_key,
-            models=openrouter_models,
-            note="Default provider — set OPENROUTER_API_KEY in env.",
-        )
-
-        openai = merged("openai", "openai", default_models=_DEFAULT_OPENAI_MODELS)
-        openai.note = "Direct OpenAI access. Add your API key and pick models."
-        anthropic = merged(
-            "anthropic", "anthropic", default_models=_DEFAULT_ANTHROPIC_MODELS
-        )
-        anthropic.note = "Direct Anthropic access. Add your API key and pick models."
-
-        return {"openrouter": openrouter, "openai": openai, "anthropic": anthropic}
+        return result
 
     async def set_provider(
         self,
@@ -208,7 +258,8 @@ class ConfigStore:
         api_key: str | None = None,
         models: list[str] | None = None,
     ) -> Provider:
-        if name not in {"openrouter", "openai", "anthropic"}:
+        valid = {"openrouter"} | {p[0] for p in _DIRECT_PROVIDERS}
+        if name not in valid:
             raise ValueError(f"Unknown provider: {name}")
         stored = await self._get_json(repo.PROVIDERS_KEY)
         stored = dict(stored) if isinstance(stored, dict) else {}

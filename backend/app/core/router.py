@@ -20,16 +20,16 @@ from .ports import Completion, LLMError, LLMProvider
 
 log = logging.getLogger(__name__)
 
-_OPENAI_BASE = "https://api.openai.com/v1"
-
 
 @dataclass
 class ResolvedSpec:
     """A model to try, with the credentials/route needed to reach it."""
 
-    provider: str
+    provider: str  # config name (cache key)
     model: str
     api_key: str
+    kind: str = "openrouter"  # openrouter|openai|anthropic|groq|deepseek|mistral|gemini|ollama
+    base_url: str = ""
 
 
 class ModelRouter:
@@ -48,30 +48,28 @@ class ModelRouter:
         # provider name -> (api_key, adapter)
         self._cache: dict[str, tuple[str, LLMProvider]] = {}
 
-    def _build(self, provider: str, api_key: str) -> LLMProvider:
+    def _build(self, spec: ResolvedSpec) -> LLMProvider:
         # Imported lazily to avoid a core ⇄ adapters import cycle.
         from ..adapters.anthropic_llm import AnthropicLLM
         from ..adapters.openai_compat import OpenAICompatLLM
 
-        if provider == "openrouter":
-            return OpenAICompatLLM(
-                api_key,
-                base_url=self._openrouter_base_url,
-                timeout=self._timeout,
-                app_url=self._app_url,
-                app_name=self._app_name,
-            )
-        if provider == "openai":
-            return OpenAICompatLLM(
-                api_key, base_url=_OPENAI_BASE, timeout=self._timeout
-            )
-        if provider == "anthropic":
-            return AnthropicLLM(api_key, timeout=self._timeout)
-        raise LLMError(f"Unknown provider: {provider}")
+        if spec.kind == "anthropic":
+            return AnthropicLLM(spec.api_key, timeout=self._timeout)
+        # Everything else speaks the OpenAI Chat Completions API — only the
+        # base_url (and, for OpenRouter, attribution headers) differ.
+        is_openrouter = spec.kind == "openrouter"
+        base_url = spec.base_url or (self._openrouter_base_url if is_openrouter else None)
+        return OpenAICompatLLM(
+            spec.api_key,
+            base_url=base_url,
+            timeout=self._timeout,
+            app_url=self._app_url if is_openrouter else "",
+            app_name=self._app_name if is_openrouter else "",
+        )
 
-    def _adapter(self, provider: str, api_key: str) -> LLMProvider:
-        cached = self._cache.get(provider)
-        if cached and cached[0] == api_key:
+    def _adapter(self, spec: ResolvedSpec) -> LLMProvider:
+        cached = self._cache.get(spec.provider)
+        if cached and cached[0] == spec.api_key:
             return cached[1]
         if cached:
             # Key changed — replace, closing the old client in the background.
@@ -79,8 +77,8 @@ class ModelRouter:
             task = asyncio.create_task(old.aclose())
             _PENDING.add(task)
             task.add_done_callback(_PENDING.discard)
-        adapter = self._build(provider, api_key)
-        self._cache[provider] = (api_key, adapter)
+        adapter = self._build(spec)
+        self._cache[spec.provider] = (spec.api_key, adapter)
         return adapter
 
     async def complete(
@@ -91,7 +89,7 @@ class ModelRouter:
             raise LLMError("No usable models — check provider keys and tier config.")
         last_error = "unknown error"
         for spec in usable:
-            adapter = self._adapter(spec.provider, spec.api_key)
+            adapter = self._adapter(spec)
             try:
                 return await adapter.complete(messages, [spec.model])
             except LLMError as exc:
