@@ -7,7 +7,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import CallbackQuery, Message
 
 from ...config import Settings
-from ...core import ConfigStore, MemoryStore
+from ...core import ChatService, ConfigStore, MemoryStore
 from ...db import Database, repo
 from .. import keyboards, texts
 
@@ -57,6 +57,48 @@ async def cmd_start(
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(texts.HELP, disable_web_page_preview=True)
+
+
+@router.message(Command("tune"))
+async def cmd_tune(
+    message: Message,
+    command: CommandObject,
+    db: Database,
+    config: ConfigStore,
+    service: ChatService,
+) -> None:
+    """Let a user refine their personal role on the fly: the model rewrites it
+    from their stated goal + what we remember + the recent conversation."""
+    tg = message.from_user
+    if tg is None:
+        return
+    if not await config.user_roles_enabled():
+        await message.answer(texts.TUNE_DISABLED)
+        return
+    instruction = (command.args or "").strip()
+    if not instruction:
+        await message.answer(texts.TUNE_USAGE)
+        return
+
+    async with db.session() as session:
+        user = await repo.get_or_create_user(
+            session, tg.id, username=tg.username, first_name=tg.first_name
+        )
+
+    placeholder = await message.answer(texts.TUNE_THINKING)
+    try:
+        new_role = (await service.tune_role(user, instruction)).strip()[:1000]
+    except Exception:  # noqa: BLE001 - never leave the user hanging
+        await placeholder.edit_text(texts.TUNE_FAILED)
+        return
+    if not new_role:
+        await placeholder.edit_text(texts.TUNE_FAILED)
+        return
+
+    async with db.session() as session:
+        await repo.set_role(session, tg.id, new_role)
+        await repo.set_role_enabled(session, tg.id, True)
+    await placeholder.edit_text(texts.tune_done(new_role))
 
 
 @router.message(Command("app"))

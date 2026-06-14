@@ -23,6 +23,17 @@ from .router import ModelRouter, ResolvedSpec
 
 log = logging.getLogger(__name__)
 
+_TUNE_SYSTEM = (
+    "You help a user craft the 'personal role' that steers how an AI assistant "
+    "talks to them in a Telegram chat. Rewrite and improve their current personal "
+    "role so it better fits the goal they describe, the facts known about them, "
+    "and how the recent conversation has gone. Write the result in the second "
+    "person as direct, actionable instructions to the assistant (e.g. 'Act as the "
+    "user's running coach. Keep replies short and motivating...'). Keep it focused "
+    "and under ~120 words. Do NOT add greetings, explanations, markdown headings "
+    "or surrounding quotes — output ONLY the new personal role text."
+)
+
 _LANGUAGE_NAMES = {
     "en": "English", "ru": "Russian", "es": "Spanish", "de": "German",
     "fr": "French", "pt": "Portuguese", "it": "Italian", "uk": "Ukrainian",
@@ -254,6 +265,38 @@ class ChatService:
             )
             await repo.consume_quota(session, tg_id)
         self.memory.remember_background(tg_id, user_text, reply_text)
+
+    async def tune_role(self, user: User, instruction: str) -> str:
+        """Rewrite the user's personal role from their stated goal, current role,
+        recalled memory and recent conversation. Returns the new role text (the
+        caller persists it). Raises :class:`LLMError` if no model is available."""
+        tg_id = user.id
+        memory_context = await self.memory.recall(tg_id, instruction or "preferences")
+        async with self.db.session() as session:
+            history = await repo.recent_history(
+                session, tg_id, self.settings.max_history_turns
+            )
+        current = (user.role or "").strip() or "(none yet)"
+        known = memory_context.strip() or "(nothing recorded yet)"
+        recent = (
+            "\n".join(f"{m['role']}: {m['content']}" for m in history[-8:])
+            or "(no recent messages)"
+        )
+        user_msg = (
+            f"# Current personal role\n{current}\n\n"
+            f"# What is known about the user\n{known}\n\n"
+            f"# Recent conversation\n{recent}\n\n"
+            f"# The user now asks you to adjust how you behave\n{instruction.strip()}\n\n"
+            "Write the improved personal role text only."
+        )
+        messages = [
+            {"role": "system", "content": _TUNE_SYSTEM},
+            {"role": "user", "content": user_msg},
+        ]
+        tier = await self.config.tier_for_user(user)
+        pool = await self.resolve_pool(user, tier)
+        completion = await self.router.complete(messages, pool, max_tokens=400)
+        return completion.text.strip()
 
     async def reply(self, user: User, user_text: str) -> Completion:
         """Produce an assistant reply for ``user_text`` (non-streaming)."""

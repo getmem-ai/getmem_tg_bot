@@ -6,6 +6,8 @@ single file makes it trivial to translate or reword the whole UX.
 
 from __future__ import annotations
 
+import html
+
 
 def start(
     name: str, memory_on: bool, voice_on: bool = False, vision_on: bool = False
@@ -49,11 +51,37 @@ HELP = (
     "/model — choose which AI model answers you\n"
     "/app — open your dashboard (Mini App)\n"
     "/upgrade — unlock premium models &amp; higher limits\n"
+    "/tune — teach me how to behave for you (tunes my style to your goals)\n"
     "/reset — forget the recent chat window (short-term)\n"
     "/forget — erase everything I remember about you (long-term)\n"
     "/help — this message\n\n"
     "🎤 Send a <b>voice message</b> and I'll transcribe and answer it."
 )
+
+
+TUNE_DISABLED = (
+    "✋ Personalised behaviour is turned off by the operator, so I can't tune "
+    "myself for you right now."
+)
+
+TUNE_USAGE = (
+    "✍️ Tell me how you'd like me to behave, for example:\n"
+    "<code>/tune be my concise running coach — remember my goals and push me</code>\n\n"
+    "I'll rewrite my personal style for you using our recent chat and what I "
+    "remember about you."
+)
+
+TUNE_THINKING = "✍️ Tuning how I respond to you…"
+
+TUNE_FAILED = "😕 Couldn't update that just now. Please try again in a moment."
+
+
+def tune_done(role: str) -> str:
+    return (
+        "✅ Done — from now on I'll follow this for you:\n\n"
+        f"<blockquote>{html.escape(role)}</blockquote>\n\n"
+        "Run /tune again to adjust, or manage it in your dashboard settings."
+    )
 
 
 def me(

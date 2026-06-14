@@ -34,6 +34,7 @@ _COMMANDS = [
     BotCommand(command="me", description="Your plan & usage"),
     BotCommand(command="model", description="Choose the AI model"),
     BotCommand(command="app", description="Open your dashboard"),
+    BotCommand(command="tune", description="Tune how I respond to you"),
     BotCommand(command="upgrade", description="Unlock premium ⭐"),
     BotCommand(command="reset", description="Clear recent chat window"),
     BotCommand(command="forget", description="Erase long-term memory"),
