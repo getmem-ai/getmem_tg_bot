@@ -109,16 +109,8 @@ export function ScheduleCalendar({ tasks, selected, onSelect }: ScheduleCalendar
         {visibleCells.map((cell, i) => {
           const isToday = sameDay(cell.date, today);
           const isSelected = selected != null && sameDay(cell.date, selected);
-          const hasRuns = cell.runs > 0;
+          const marked = cell.runs > 0 && cell.inMonth;
           const strong = cell.runs >= 3;
-
-          // Marker tint: strong/primary for 3+, light tint for 1–2.
-          let marker = "";
-          if (hasRuns) {
-            marker = strong
-              ? "bg-primary text-primary-fg"
-              : "bg-primary/15 text-primary";
-          }
 
           return (
             <button
@@ -126,21 +118,38 @@ export function ScheduleCalendar({ tasks, selected, onSelect }: ScheduleCalendar
               type="button"
               disabled={!cell.inMonth}
               onClick={() => {
-                if (!cell.inMonth || !hasRuns) return;
+                if (!marked) return;
                 hapticSelection();
                 onSelect(cell.date);
               }}
               aria-label={`${cell.date.toLocaleDateString()}${
-                hasRuns ? `, ${cell.runs} reminder${cell.runs > 1 ? "s" : ""}` : ""
+                marked ? `, ${cell.runs} reminder${cell.runs > 1 ? "s" : ""}` : ""
               }`}
               aria-pressed={isSelected}
-              className={`relative flex aspect-square items-center justify-center rounded-xl text-xs font-semibold transition ${
-                isSelected ? "ring-2 ring-primary ring-offset-1 ring-offset-surface" : ""
-              } ${isToday && !marker ? "ring-1 ring-primary/60" : ""} ${
-                marker || (cell.inMonth ? "text-text active:bg-surface-2" : "text-muted/40")
-              } ${hasRuns ? "active:scale-[0.95]" : "cursor-default"}`}
+              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition ${
+                isSelected
+                  ? "ring-2 ring-primary ring-offset-1 ring-offset-surface"
+                  : isToday
+                    ? "ring-1 ring-primary/60"
+                    : ""
+              } ${marked ? "bg-primary/5 text-text" : ""} ${
+                !marked && cell.inMonth ? "text-text" : ""
+              } ${!cell.inMonth ? "text-muted/40" : ""} ${
+                marked ? "active:scale-[0.95]" : "cursor-default"
+              }`}
             >
-              {cell.date.getDate()}
+              <span className="leading-none">{cell.date.getDate()}</span>
+              {/* Event marker dot — clearly visible (solid for 3+, lighter for 1–2). */}
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  marked
+                    ? strong
+                      ? "bg-primary"
+                      : "bg-primary/40"
+                    : "bg-transparent"
+                }`}
+              />
             </button>
           );
         })}

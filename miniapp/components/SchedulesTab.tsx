@@ -31,7 +31,7 @@ import { CardSkeleton } from "./Skeleton";
 import { ErrorState } from "./ErrorState";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { ScheduleWizard } from "./ScheduleWizard";
-import { EmptyState, Toggle } from "./ui";
+import { Button, EmptyState, Toggle } from "./ui";
 
 /** Builds the full ScheduleInput payload from an existing task (for toggles). */
 function inputFromTask(task: ScheduledTask, enabled: boolean): ScheduleInput {
@@ -185,6 +185,13 @@ function SchedulesView({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Top action — create a new reminder (opens the wizard). */}
+      <div className="flex justify-end">
+        <Button onClick={openNew} icon={Plus} size="sm">
+          New reminder
+        </Button>
+      </div>
+
       {/* Nudge: timezone still on UTC → reminders won't fire in local time */}
       {tz === "UTC" && (
         <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface-2/60 p-4">
@@ -246,7 +253,7 @@ function SchedulesView({
           <EmptyState
             icon={AlarmClock}
             title="No reminders yet"
-            hint="Tap + to create one and the bot will message you on schedule."
+            hint="Tap “New reminder” above and the bot will message you on schedule."
           />
         ) : (
           <ul className="space-y-2.5">
@@ -358,16 +365,6 @@ function SchedulesView({
           />
         )}
       </Card>
-
-      {/* Floating add button */}
-      <button
-        type="button"
-        onClick={openNew}
-        aria-label="New reminder"
-        className="fixed bottom-[calc(80px+env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-grad-primary text-primary-fg shadow-pop transition active:scale-95"
-      >
-        <Plus className="h-6 w-6" aria-hidden />
-      </button>
 
       {wizardOpen && (
         <ScheduleWizard
