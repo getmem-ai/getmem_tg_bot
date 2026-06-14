@@ -112,6 +112,14 @@ export function ScheduleCalendar({ tasks, selected, onSelect }: ScheduleCalendar
           const marked = cell.runs > 0 && cell.inMonth;
           const strong = cell.runs >= 3;
 
+          // Fill: solid blue circle (white number) for 3+, a clearly tinted
+          // circle for 1–2, nothing otherwise.
+          let fill = "";
+          if (strong) fill = "bg-primary text-white shadow-soft";
+          else if (marked) fill = "bg-primary/20 text-text";
+          else if (cell.inMonth) fill = "text-text";
+          else fill = "text-muted/40";
+
           return (
             <button
               key={i}
@@ -126,28 +134,20 @@ export function ScheduleCalendar({ tasks, selected, onSelect }: ScheduleCalendar
                 marked ? `, ${cell.runs} reminder${cell.runs > 1 ? "s" : ""}` : ""
               }`}
               aria-pressed={isSelected}
-              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl text-xs font-semibold transition ${
+              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-full text-xs font-semibold transition ${
                 isSelected
                   ? "ring-2 ring-primary ring-offset-1 ring-offset-surface"
                   : isToday
                     ? "ring-1 ring-primary/60"
                     : ""
-              } ${marked ? "bg-primary/5 text-text" : ""} ${
-                !marked && cell.inMonth ? "text-text" : ""
-              } ${!cell.inMonth ? "text-muted/40" : ""} ${
-                marked ? "active:scale-[0.95]" : "cursor-default"
-              }`}
+              } ${fill} ${marked ? "active:scale-[0.95]" : "cursor-default"}`}
             >
               <span className="leading-none">{cell.date.getDate()}</span>
-              {/* Event marker dot — clearly visible (solid for 3+, lighter for 1–2). */}
+              {/* A solid dot under the number for 1–2 days (3+ already filled). */}
               <span
                 aria-hidden
-                className={`h-1.5 w-1.5 rounded-full ${
-                  marked
-                    ? strong
-                      ? "bg-primary"
-                      : "bg-primary/40"
-                    : "bg-transparent"
+                className={`h-1 w-1 rounded-full ${
+                  marked && !strong ? "bg-primary" : "bg-transparent"
                 }`}
               />
             </button>
@@ -158,11 +158,11 @@ export function ScheduleCalendar({ tasks, selected, onSelect }: ScheduleCalendar
       {/* Legend */}
       <div className="mt-3 flex items-center justify-center gap-4 text-[11px] text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-md bg-primary/15" aria-hidden />
+          <span className="h-3.5 w-3.5 rounded-full bg-primary/20" aria-hidden />
           1–2 reminders
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-md bg-primary" aria-hidden />
+          <span className="h-3.5 w-3.5 rounded-full bg-primary" aria-hidden />
           3+ reminders
         </span>
       </div>
