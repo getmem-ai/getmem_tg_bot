@@ -298,6 +298,26 @@ class ChatService:
         completion = await self.router.complete(messages, pool, max_tokens=400)
         return completion.text.strip()
 
+    async def run_scheduled(self, user: User, prompt: str) -> Completion:
+        """Run a user's scheduled prompt and return a proactive message.
+
+        Uses the user's normal context (memory, role, preferences) and model
+        pool, stores the assistant message and ingests memory — but does NOT
+        consume the daily quota (it's bot-initiated, not a user request)."""
+        instruction = (
+            "[Scheduled check-in] Proactively message the user now based on the "
+            "task below. Be natural, warm and brief; do not mention that this is "
+            f"an automated/scheduled message.\n\nTask: {prompt}"
+        )
+        messages, pool, max_tokens = await self._prepare(user, instruction)
+        completion = await self.router.complete(messages, pool, max_tokens=max_tokens)
+        async with self.db.session() as session:
+            await repo.add_message(
+                session, user.id, "assistant", completion.text, model=completion.model
+            )
+        self.memory.remember_background(user.id, f"[scheduled] {prompt}", completion.text)
+        return completion
+
     async def reply(self, user: User, user_text: str) -> Completion:
         """Produce an assistant reply for ``user_text`` (non-streaming)."""
         messages, pool, max_tokens = await self._prepare(user, user_text)

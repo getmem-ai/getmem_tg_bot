@@ -29,6 +29,7 @@ export interface User {
   reply_language: string | null;
   reply_style: string | null;
   reply_length: string | null;
+  timezone: string;
   created_at: string;
 }
 
@@ -37,6 +38,7 @@ export interface ProfileUpdate {
   reply_language?: string | null;
   reply_style?: string | null;
   reply_length?: string | null;
+  timezone?: string;
 }
 
 export interface ProfileResponse {
@@ -44,6 +46,47 @@ export interface ProfileResponse {
   reply_language: string | null;
   reply_style: string | null;
   reply_length: string | null;
+  timezone: string;
+}
+
+export interface ScheduledTask {
+  id: number;
+  title: string;
+  prompt: string;
+  frequency: "daily" | "weekly" | string;
+  times: string[]; // ["08:00", "20:00"]
+  weekdays: number[]; // 0=Mon … 6=Sun
+  enabled: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  created_at: string;
+}
+
+export interface ScheduleInput {
+  title: string;
+  prompt: string;
+  frequency: string;
+  times: string[];
+  weekdays: number[];
+  enabled: boolean;
+}
+
+export interface SchedulesResponse {
+  tasks: ScheduledTask[];
+  timezone: string;
+  enabled: boolean; // operator allows scheduling at all
+}
+
+export interface ScheduleRun {
+  id: number;
+  task_id: number;
+  fired_at: string;
+  status: string;
+  preview: string;
+}
+
+export interface ScheduleRunsResponse {
+  runs: ScheduleRun[];
 }
 
 export interface Usage {
@@ -191,6 +234,7 @@ export interface RuntimeResponse {
   brand_name: string;
   brand_tagline: string;
   streaming_enabled: boolean;
+  scheduling_enabled: boolean;
 }
 
 export interface RuntimeUpdate {
@@ -207,6 +251,7 @@ export interface RuntimeUpdate {
   brand_name?: string;
   brand_tagline?: string;
   streaming_enabled?: boolean;
+  scheduling_enabled?: boolean;
 }
 
 export interface BotTemplate {

@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     Date,
@@ -24,6 +25,7 @@ from sqlalchemy import (
     Text,
     false as sa_false,
     func,
+    true as sa_true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +58,10 @@ class User(Base):
     reply_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     reply_style: Mapped[str | None] = mapped_column(String(16), nullable=True)
     reply_length: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # IANA timezone (e.g. "Europe/Berlin") for scheduling reminders in local time.
+    timezone: Mapped[str] = mapped_column(
+        String(48), default="UTC", server_default="UTC"
+    )
     premium_until: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -140,6 +146,57 @@ class AppSetting(Base):
         server_default=func.now(),
         onupdate=_utcnow,
     )
+
+
+class ScheduledTask(Base):
+    """A recurring, user-defined reminder/prompt the bot runs proactively.
+
+    The schedule is interpreted in the *user's* timezone; ``next_run_at`` is the
+    precomputed next fire time in UTC (indexed so the scheduler can poll cheaply).
+    """
+
+    __tablename__ = "scheduled_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(128))
+    prompt: Mapped[str] = mapped_column(Text)
+    frequency: Mapped[str] = mapped_column(String(16), default="daily")  # daily|weekly
+    times: Mapped[list] = mapped_column(JSON, default=list)  # ["08:00", "20:00"]
+    weekdays: Mapped[list] = mapped_column(JSON, default=list)  # [0..6], Mon=0
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=sa_true()
+    )
+    next_run_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    last_run_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, server_default=func.now()
+    )
+
+
+class ScheduledRun(Base):
+    """History of a scheduled task firing — powers the 'past events' view."""
+
+    __tablename__ = "scheduled_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("scheduled_tasks.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    fired_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, server_default=func.now(), index=True
+    )
+    status: Mapped[str] = mapped_column(String(16))  # sent | failed
+    preview: Mapped[str] = mapped_column(Text, default="", server_default="")
 
 
 class Payment(Base):

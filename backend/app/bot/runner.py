@@ -25,6 +25,7 @@ from ..config import Settings
 from ..container import Container
 from ..core.ports import MemoryStore
 from .handlers import build_router
+from .scheduler import run_scheduler
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +88,16 @@ async def run_bot(container: Container) -> None:
     dp["transcriber"] = container.transcriber
     dp["config"] = container.config
 
+    # Background scheduler — fires users' recurring reminders in their local time.
+    scheduler_task = asyncio.create_task(
+        run_scheduler(
+            bot=bot,
+            db=container.db,
+            service=container.chat_service,
+            config=container.config,
+        )
+    )
+
     try:
         await _on_startup(bot, settings, container.memory)
         if settings.use_webhook:
@@ -95,6 +106,11 @@ async def run_bot(container: Container) -> None:
             await bot.delete_webhook(drop_pending_updates=False)
             await dp.start_polling(bot)
     finally:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
         await bot.session.close()
 
 

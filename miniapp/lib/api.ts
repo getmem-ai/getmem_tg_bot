@@ -13,6 +13,10 @@ import type {
   ConfigApplyResult,
   HealthResponse,
   OnboardingState,
+  ScheduleInput,
+  ScheduleRunsResponse,
+  ScheduledTask,
+  SchedulesResponse,
   TemplatesResponse,
   InvoiceResponse,
   MeResponse,
@@ -105,6 +109,23 @@ export const api = {
     putJson<SetRoleResponse>("/me/role", update),
   setProfile: (update: ProfileUpdate) =>
     putJson<ProfileResponse>("/me/profile", update),
+
+  // ---- Scheduling (user reminders) ----
+  getSchedules: () => request<SchedulesResponse>("/me/schedules"),
+  getScheduleRuns: (limit = 20) =>
+    request<ScheduleRunsResponse>(
+      `/me/schedules/runs?limit=${encodeURIComponent(limit)}`,
+    ),
+  createSchedule: (input: ScheduleInput) =>
+    request<ScheduledTask>("/me/schedules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  updateSchedule: (id: number, input: ScheduleInput) =>
+    putJson<ScheduledTask>(`/me/schedules/${id}`, input),
+  deleteSchedule: (id: number) =>
+    request<void>(`/me/schedules/${id}`, { method: "DELETE" }),
   createInvoice: (tier_key: string) =>
     request<InvoiceResponse>("/me/invoice", {
       method: "POST",

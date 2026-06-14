@@ -2,6 +2,7 @@
 
 import { useState, type ComponentType } from "react";
 import {
+  AlarmClock,
   BadgeCheck,
   Drama,
   Image as ImageIcon,
@@ -115,6 +116,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
     initial.vision_premium_only,
   );
   const [streaming, setStreaming] = useState(initial.streaming_enabled);
+  const [scheduling, setScheduling] = useState(initial.scheduling_enabled);
   const [welcome, setWelcome] = useState(initial.welcome_message);
   const [brandName, setBrandName] = useState(initial.brand_name);
   const [brandTagline, setBrandTagline] = useState(initial.brand_tagline);
@@ -171,6 +173,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         vision_provider: visionProvider,
         vision_premium_only: visionPremiumOnly,
         streaming_enabled: streaming,
+        scheduling_enabled: scheduling,
         welcome_message: welcome,
         brand_name: brandName,
         brand_tagline: brandTagline,
@@ -183,6 +186,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       setVisionSel(`${res.vision_provider}:${res.vision_model}`);
       setVisionPremiumOnly(res.vision_premium_only);
       setStreaming(res.streaming_enabled);
+      setScheduling(res.scheduling_enabled);
       setWelcome(res.welcome_message);
       setBrandName(res.brand_name);
       setBrandTagline(res.brand_tagline);
@@ -240,6 +244,14 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
             checked={rolesEnabled}
             onChange={setRolesEnabled}
             label="Allow personal roles"
+          />
+          <ToggleRow
+            icon={AlarmClock}
+            title="Scheduled reminders"
+            desc="Let users create recurring reminders the bot sends in their local time."
+            checked={scheduling}
+            onChange={setScheduling}
+            label="Scheduled reminders"
           />
 
           {/* Vision — toggle plus its nested options when enabled. */}

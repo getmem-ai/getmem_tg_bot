@@ -25,6 +25,7 @@ class UserOut(BaseModel):
     reply_language: str | None = None
     reply_style: str | None = None
     reply_length: str | None = None
+    timezone: str = "UTC"
     created_at: dt.datetime
 
 
@@ -36,6 +37,7 @@ class ProfileIn(BaseModel):
     reply_language: str | None = None
     reply_style: str | None = None
     reply_length: str | None = None
+    timezone: str | None = None
 
 
 class ProfileOut(BaseModel):
@@ -43,6 +45,7 @@ class ProfileOut(BaseModel):
     reply_language: str | None = None
     reply_style: str | None = None
     reply_length: str | None = None
+    timezone: str = "UTC"
 
 
 class UsageOut(BaseModel):
@@ -137,6 +140,7 @@ class RuntimeOut(BaseModel):
     brand_name: str
     brand_tagline: str
     streaming_enabled: bool
+    scheduling_enabled: bool
 
 
 class RuntimeIn(BaseModel):
@@ -153,6 +157,7 @@ class RuntimeIn(BaseModel):
     brand_name: str | None = None
     brand_tagline: str | None = None
     streaming_enabled: bool | None = None
+    scheduling_enabled: bool | None = None
 
 
 class ProviderTestIn(BaseModel):
@@ -357,3 +362,46 @@ class OnboardingOut(BaseModel):
     system_prompt_is_default: bool
     tiers_count: int
     providers_configured: int  # providers that are enabled AND have a usable key
+
+
+# -- scheduling --------------------------------------------------------------
+
+
+class ScheduleIn(BaseModel):
+    title: str
+    prompt: str
+    frequency: str = "daily"  # daily | weekly
+    times: list[str] = []  # ["08:00", "20:00"] in the user's timezone
+    weekdays: list[int] = []  # 0=Mon … 6=Sun (used when frequency == weekly)
+    enabled: bool = True
+
+
+class ScheduleOut(BaseModel):
+    id: int
+    title: str
+    prompt: str
+    frequency: str
+    times: list[str]
+    weekdays: list[int]
+    enabled: bool
+    next_run_at: dt.datetime | None
+    last_run_at: dt.datetime | None
+    created_at: dt.datetime
+
+
+class SchedulesOut(BaseModel):
+    tasks: list[ScheduleOut]
+    timezone: str
+    enabled: bool  # whether the operator allows scheduling at all
+
+
+class ScheduleRunOut(BaseModel):
+    id: int
+    task_id: int
+    fired_at: dt.datetime
+    status: str
+    preview: str
+
+
+class ScheduleRunsOut(BaseModel):
+    runs: list[ScheduleRunOut]

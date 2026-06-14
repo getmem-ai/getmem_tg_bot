@@ -248,6 +248,20 @@ class ConfigStore:
                     session, repo.STREAMING_ENABLED_KEY, "true" if on else "false"
                 )
 
+    async def scheduling_enabled(self) -> bool:
+        """Allow users to create scheduled reminders (default: enabled)."""
+        stored = await self._get_str(repo.SCHEDULING_ENABLED_KEY)
+        if stored is None:
+            return True
+        return stored == "true"
+
+    async def set_scheduling_enabled(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.SCHEDULING_ENABLED_KEY, "true" if on else "false"
+                )
+
     async def onboarded(self) -> bool:
         """Whether the operator finished the first-run setup wizard."""
         return (await self._get_str(repo.ONBOARDED_KEY)) == "true"
@@ -536,6 +550,7 @@ class ConfigStore:
             "vision_model": {"provider": vm.provider, "id": vm.id},
             "user_roles_enabled": await self.user_roles_enabled(),
             "streaming_enabled": await self.streaming_enabled(),
+            "scheduling_enabled": await self.scheduling_enabled(),
             "disabled_models": sorted(await self.disabled_models()),
             "providers": {
                 name: {"enabled": p.enabled, "models": list(p.models)}
@@ -588,6 +603,7 @@ class ConfigStore:
             ("vision_premium_only", self.set_vision_premium_only, "vision premium-only"),
             ("user_roles_enabled", self.set_user_roles_enabled, "personal roles"),
             ("streaming_enabled", self.set_streaming_enabled, "streaming"),
+            ("scheduling_enabled", self.set_scheduling_enabled, "scheduling"),
         ]
         for key, setter, label in toggles:
             if isinstance(cfg.get(key), bool):

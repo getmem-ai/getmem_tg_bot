@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import Settings
 from ..core import ConfigStore
 from ..core.config_store import ModelSpec
+from ..core.scheduling import compute_next_run, parse_times, valid_timezone
 from ..db import repo
 from .auth import TelegramUser
 from .deps import (
@@ -56,6 +57,11 @@ from .schemas import (
     PromptOut,
     RoleIn,
     RoleOut,
+    ScheduleIn,
+    ScheduleOut,
+    ScheduleRunOut,
+    ScheduleRunsOut,
+    SchedulesOut,
     ProviderIn,
     ProviderOut,
     ProvidersOut,
@@ -138,6 +144,7 @@ async def me(
             reply_language=db_user.reply_language,
             reply_style=db_user.reply_style,
             reply_length=db_user.reply_length,
+            timezone=db_user.timezone or "UTC",
             created_at=db_user.created_at,
         ),
         usage=UsageOut(
@@ -253,6 +260,14 @@ async def set_my_profile(
             )
         changes["reply_length"] = None if length == "default" else length
 
+    if "timezone" in fields:
+        tz = (body.timezone or "UTC").strip() or "UTC"
+        if not valid_timezone(tz):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown timezone."
+            )
+        changes["timezone"] = tz
+
     updated = await repo.update_profile(session, user.id, changes)
     await session.flush()
     return ProfileOut(
@@ -260,6 +275,184 @@ async def set_my_profile(
         reply_language=updated.reply_language,
         reply_style=updated.reply_style,
         reply_length=updated.reply_length,
+        timezone=updated.timezone or "UTC",
+    )
+
+
+# -- scheduling (user reminders) ---------------------------------------------
+
+_MAX_TASKS = 20
+_MAX_TIMES = 6
+_FREQS = {"daily", "weekly"}
+
+
+def _schedule_out(task) -> ScheduleOut:  # type: ignore[no-untyped-def]
+    return ScheduleOut(
+        id=task.id,
+        title=task.title,
+        prompt=task.prompt,
+        frequency=task.frequency,
+        times=list(task.times or []),
+        weekdays=list(task.weekdays or []),
+        enabled=task.enabled,
+        next_run_at=task.next_run_at,
+        last_run_at=task.last_run_at,
+        created_at=task.created_at,
+    )
+
+
+def _validate_schedule(body: ScheduleIn) -> tuple[str, str, str, list[str], list[int]]:
+    """Validate + normalise a schedule. Raises HTTPException(400) on bad input."""
+    title = (body.title or "").strip()
+    prompt = (body.prompt or "").strip()
+    if not title or not prompt:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Title and prompt are required."
+        )
+    frequency = body.frequency if body.frequency in _FREQS else "daily"
+    tods = parse_times(body.times)
+    if not tods:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Add at least one valid time (HH:MM).",
+        )
+    if len(tods) > _MAX_TIMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"At most {_MAX_TIMES} times per task.",
+        )
+    times = [f"{h:02d}:{m:02d}" for h, m in tods]
+    weekdays: list[int] = []
+    if frequency == "weekly":
+        weekdays = sorted({w for w in body.weekdays if isinstance(w, int) and 0 <= w <= 6})
+        if not weekdays:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Pick at least one weekday for a weekly schedule.",
+            )
+    return title[:128], prompt[:2000], frequency, times, weekdays
+
+
+@router.get("/me/schedules", response_model=SchedulesOut)
+async def list_schedules(
+    user: TelegramUser = Depends(current_user),
+    config: ConfigStore = Depends(get_config),
+    session: AsyncSession = Depends(db_session),
+) -> SchedulesOut:
+    db_user = await repo.get_or_create_user(session, user.id)
+    tasks = await repo.list_tasks(session, user.id)
+    return SchedulesOut(
+        tasks=[_schedule_out(t) for t in tasks],
+        timezone=db_user.timezone or "UTC",
+        enabled=await config.scheduling_enabled(),
+    )
+
+
+@router.post("/me/schedules", response_model=ScheduleOut)
+async def create_schedule(
+    body: ScheduleIn,
+    user: TelegramUser = Depends(current_user),
+    config: ConfigStore = Depends(get_config),
+    session: AsyncSession = Depends(db_session),
+) -> ScheduleOut:
+    if not await config.scheduling_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Scheduling is disabled by the operator.",
+        )
+    db_user = await repo.get_or_create_user(
+        session, user.id, username=user.username, first_name=user.first_name
+    )
+    if await repo.count_tasks(session, user.id) >= _MAX_TASKS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"You can have at most {_MAX_TASKS} reminders.",
+        )
+    title, prompt, frequency, times, weekdays = _validate_schedule(body)
+    next_run = compute_next_run(
+        timezone=db_user.timezone or "UTC",
+        frequency=frequency,
+        times=times,
+        weekdays=weekdays,
+        after=dt.datetime.now(dt.timezone.utc),
+    )
+    task = await repo.create_task(
+        user_id=user.id,
+        title=title,
+        prompt=prompt,
+        frequency=frequency,
+        times=times,
+        weekdays=weekdays,
+        enabled=body.enabled,
+        next_run_at=next_run if body.enabled else None,
+    )
+    await session.flush()
+    return _schedule_out(task)
+
+
+@router.put("/me/schedules/{task_id}", response_model=ScheduleOut)
+async def update_schedule(
+    task_id: int,
+    body: ScheduleIn,
+    user: TelegramUser = Depends(current_user),
+    session: AsyncSession = Depends(db_session),
+) -> ScheduleOut:
+    db_user = await repo.get_or_create_user(session, user.id)
+    task = await repo.get_task(session, task_id)
+    if task is None or task.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+    title, prompt, frequency, times, weekdays = _validate_schedule(body)
+    task.title = title
+    task.prompt = prompt
+    task.frequency = frequency
+    task.times = times
+    task.weekdays = weekdays
+    task.enabled = body.enabled
+    task.next_run_at = (
+        compute_next_run(
+            timezone=db_user.timezone or "UTC",
+            frequency=frequency,
+            times=times,
+            weekdays=weekdays,
+            after=dt.datetime.now(dt.timezone.utc),
+        )
+        if body.enabled
+        else None
+    )
+    await session.flush()
+    return _schedule_out(task)
+
+
+@router.delete("/me/schedules/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_schedule(
+    task_id: int,
+    user: TelegramUser = Depends(current_user),
+    session: AsyncSession = Depends(db_session),
+) -> None:
+    task = await repo.get_task(session, task_id)
+    if task is None or task.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+    await repo.delete_task(session, task)
+
+
+@router.get("/me/schedules/runs", response_model=ScheduleRunsOut)
+async def list_schedule_runs(
+    limit: int = Query(default=20, ge=1, le=100),
+    user: TelegramUser = Depends(current_user),
+    session: AsyncSession = Depends(db_session),
+) -> ScheduleRunsOut:
+    runs = await repo.list_runs(session, user.id, limit)
+    return ScheduleRunsOut(
+        runs=[
+            ScheduleRunOut(
+                id=r.id,
+                task_id=r.task_id,
+                fired_at=r.fired_at,
+                status=r.status,
+                preview=r.preview,
+            )
+            for r in runs
+        ]
     )
 
 
@@ -400,6 +593,7 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         brand_name=await config.brand_name(),
         brand_tagline=await config.brand_tagline(),
         streaming_enabled=await config.streaming_enabled(),
+        scheduling_enabled=await config.scheduling_enabled(),
     )
 
 
@@ -437,6 +631,8 @@ async def set_runtime(
         await config.set_vision_premium_only(body.vision_premium_only)
     if body.streaming_enabled is not None:
         await config.set_streaming_enabled(body.streaming_enabled)
+    if body.scheduling_enabled is not None:
+        await config.set_scheduling_enabled(body.scheduling_enabled)
     if body.welcome_message is not None:
         await config.set_welcome_message(body.welcome_message)
     if body.brand_name is not None or body.brand_tagline is not None:

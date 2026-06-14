@@ -5,7 +5,7 @@ import { hapticSelection } from "@/lib/telegram";
 
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
-export type TabKey = "home" | "activity" | "settings" | "admin";
+export type TabKey = "home" | "activity" | "schedules" | "settings" | "admin";
 
 export interface TabDef {
   key: TabKey;

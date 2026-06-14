@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, LayoutDashboard, Settings, Shield } from "lucide-react";
+import { AlarmClock, Clock, LayoutDashboard, Settings, Shield } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { hasInitData, initWebApp } from "@/lib/telegram";
@@ -19,6 +19,7 @@ import { UsageRing } from "@/components/UsageRing";
 import { UsageChart } from "@/components/UsageChart";
 import { TotalsCards } from "@/components/TotalsCards";
 import { ActivityList } from "@/components/ActivityList";
+import { SchedulesTab } from "@/components/SchedulesTab";
 import { SettingsTab } from "@/components/SettingsTab";
 import { AdminTab } from "@/components/AdminTab";
 import { CardSkeleton, Skeleton } from "@/components/Skeleton";
@@ -57,6 +58,7 @@ function Shell() {
     const base: TabDef[] = [
       { key: "home", label: "Home", icon: LayoutDashboard },
       { key: "activity", label: "Activity", icon: Clock },
+      { key: "schedules", label: "Schedules", icon: AlarmClock },
       { key: "settings", label: "Settings", icon: Settings },
     ];
     if (isAdmin) base.push({ key: "admin", label: "Admin", icon: Shield });
@@ -84,6 +86,7 @@ function Shell() {
         <div key={tab} className="animate-fade-in">
           {tab === "home" && <HomeTab me={me} onUpgrade={() => setTab("settings")} />}
           {tab === "activity" && <ActivityTab />}
+          {tab === "schedules" && <SchedulesTab />}
           {tab === "settings" && <SettingsTabView me={me} />}
           {tab === "admin" && isAdmin && <AdminTab />}
         </div>

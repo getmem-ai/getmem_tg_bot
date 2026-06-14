@@ -14,7 +14,15 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import AppSetting, DailyUsage, Message, Payment, User
+from .models import (
+    AppSetting,
+    DailyUsage,
+    Message,
+    Payment,
+    ScheduledRun,
+    ScheduledTask,
+    User,
+)
 
 # Keys for the app_settings key-value table.
 SYSTEM_PROMPT_KEY = "system_prompt"
@@ -32,6 +40,7 @@ WELCOME_KEY = "welcome_message"
 BRAND_NAME_KEY = "brand_name"
 BRAND_TAGLINE_KEY = "brand_tagline"
 STREAMING_ENABLED_KEY = "streaming_enabled"
+SCHEDULING_ENABLED_KEY = "scheduling_enabled"
 ONBOARDED_KEY = "onboarded"
 
 
@@ -83,7 +92,13 @@ async def set_role(session: AsyncSession, user_id: int, role: str | None) -> Non
     user.role = role
 
 
-_PROFILE_FIELDS = {"avatar", "reply_language", "reply_style", "reply_length"}
+_PROFILE_FIELDS = {
+    "avatar",
+    "reply_language",
+    "reply_style",
+    "reply_length",
+    "timezone",
+}
 
 
 async def update_profile(
@@ -441,3 +456,83 @@ async def get_system_prompt(session: AsyncSession, default: str) -> str:
 
 async def set_system_prompt(session: AsyncSession, prompt: str) -> None:
     await set_setting(session, SYSTEM_PROMPT_KEY, prompt)
+
+
+# -- scheduled tasks ---------------------------------------------------------
+
+
+async def list_tasks(session: AsyncSession, user_id: int) -> list[ScheduledTask]:
+    rows = await session.execute(
+        select(ScheduledTask)
+        .where(ScheduledTask.user_id == user_id)
+        .order_by(ScheduledTask.created_at.desc())
+    )
+    return list(rows.scalars().all())
+
+
+async def count_tasks(session: AsyncSession, user_id: int) -> int:
+    row = await session.execute(
+        select(func.count())
+        .select_from(ScheduledTask)
+        .where(ScheduledTask.user_id == user_id)
+    )
+    return int(row.scalar_one())
+
+
+async def get_task(session: AsyncSession, task_id: int) -> ScheduledTask | None:
+    return await session.get(ScheduledTask, task_id)
+
+
+async def create_task(session: AsyncSession, **fields: object) -> ScheduledTask:
+    task = ScheduledTask(**fields)  # type: ignore[arg-type]
+    session.add(task)
+    await session.flush()
+    return task
+
+
+async def delete_task(session: AsyncSession, task: ScheduledTask) -> None:
+    await session.delete(task)
+
+
+async def due_tasks(
+    session: AsyncSession, now: dt.datetime, limit: int = 50
+) -> list[ScheduledTask]:
+    """Enabled tasks whose next run is due (``next_run_at <= now``)."""
+    rows = await session.execute(
+        select(ScheduledTask)
+        .where(
+            ScheduledTask.enabled.is_(True),
+            ScheduledTask.next_run_at.is_not(None),
+            ScheduledTask.next_run_at <= now,
+        )
+        .order_by(ScheduledTask.next_run_at)
+        .limit(limit)
+    )
+    return list(rows.scalars().all())
+
+
+async def add_run(
+    session: AsyncSession,
+    *,
+    task_id: int,
+    user_id: int,
+    status: str,
+    preview: str = "",
+) -> None:
+    session.add(
+        ScheduledRun(
+            task_id=task_id, user_id=user_id, status=status, preview=preview[:500]
+        )
+    )
+
+
+async def list_runs(
+    session: AsyncSession, user_id: int, limit: int = 20
+) -> list[ScheduledRun]:
+    rows = await session.execute(
+        select(ScheduledRun)
+        .where(ScheduledRun.user_id == user_id)
+        .order_by(ScheduledRun.fired_at.desc())
+        .limit(limit)
+    )
+    return list(rows.scalars().all())
