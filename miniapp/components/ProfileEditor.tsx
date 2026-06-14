@@ -16,6 +16,7 @@ import {
   type SaveStatus,
   type SelectOption,
 } from "./ui";
+import { TimezonePicker } from "./ui/TimezonePicker";
 
 interface ProfileEditorProps {
   user: User;
@@ -54,52 +55,6 @@ const LENGTHS: { value: string; label: string }[] = [
   { value: "concise", label: "Concise" },
   { value: "detailed", label: "Detailed" },
 ];
-
-// A curated list of common IANA timezones across regions. If the user's stored
-// timezone isn't here, we prepend it below so it stays selectable.
-const TIMEZONES: SelectOption<string>[] = [
-  { value: "UTC", label: "UTC" },
-  { value: "Pacific/Honolulu", label: "Honolulu" },
-  { value: "America/Anchorage", label: "Anchorage" },
-  { value: "America/Los_Angeles", label: "Los Angeles" },
-  { value: "America/Denver", label: "Denver" },
-  { value: "America/Chicago", label: "Chicago" },
-  { value: "America/New_York", label: "New York" },
-  { value: "America/Mexico_City", label: "Mexico City" },
-  { value: "America/Bogota", label: "Bogotá" },
-  { value: "America/Sao_Paulo", label: "São Paulo" },
-  { value: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
-  { value: "Atlantic/Reykjavik", label: "Reykjavík" },
-  { value: "Europe/London", label: "London" },
-  { value: "Europe/Madrid", label: "Madrid" },
-  { value: "Europe/Paris", label: "Paris" },
-  { value: "Europe/Berlin", label: "Berlin" },
-  { value: "Europe/Rome", label: "Rome" },
-  { value: "Europe/Athens", label: "Athens" },
-  { value: "Europe/Kyiv", label: "Kyiv" },
-  { value: "Europe/Moscow", label: "Moscow" },
-  { value: "Africa/Lagos", label: "Lagos" },
-  { value: "Africa/Cairo", label: "Cairo" },
-  { value: "Africa/Johannesburg", label: "Johannesburg" },
-  { value: "Asia/Istanbul", label: "Istanbul" },
-  { value: "Asia/Dubai", label: "Dubai" },
-  { value: "Asia/Karachi", label: "Karachi" },
-  { value: "Asia/Kolkata", label: "Kolkata" },
-  { value: "Asia/Dhaka", label: "Dhaka" },
-  { value: "Asia/Bangkok", label: "Bangkok" },
-  { value: "Asia/Shanghai", label: "Shanghai" },
-  { value: "Asia/Singapore", label: "Singapore" },
-  { value: "Asia/Tokyo", label: "Tokyo" },
-  { value: "Asia/Seoul", label: "Seoul" },
-  { value: "Australia/Sydney", label: "Sydney" },
-  { value: "Pacific/Auckland", label: "Auckland" },
-];
-
-/** Returns the timezone option list, prepending the user's tz if it's missing. */
-function timezoneOptions(tz: string): SelectOption<string>[] {
-  if (TIMEZONES.some((o) => o.value === tz)) return TIMEZONES;
-  return [{ value: tz, label: tz }, ...TIMEZONES];
-}
 
 export function ProfileEditor({ user, onClose, onSaved }: ProfileEditorProps) {
   const [avatar, setAvatar] = useState<string | null>(user.avatar);
@@ -249,11 +204,7 @@ export function ProfileEditor({ user, onClose, onSaved }: ProfileEditorProps) {
             label="Timezone"
             hint="Used to schedule reminders in your local time."
           >
-            <Select
-              options={timezoneOptions(timezone)}
-              value={timezone}
-              onChange={setTimezone}
-            />
+            <TimezonePicker value={timezone} onChange={setTimezone} />
           </Field>
         </div>
 

@@ -377,6 +377,7 @@ async def create_schedule(
         after=dt.datetime.now(dt.timezone.utc),
     )
     task = await repo.create_task(
+        session,
         user_id=user.id,
         title=title,
         prompt=prompt,

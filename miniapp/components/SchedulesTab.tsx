@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   AlarmClock,
   CalendarOff,
+  Clock,
   Pencil,
   Plus,
   Save,
@@ -30,11 +31,71 @@ import {
   Input,
   SaveMessage,
   SegmentedControl,
+  Select,
   Toggle,
   type SaveStatus,
+  type SelectOption,
 } from "./ui";
 
 const MAX_TIMES = 6;
+
+const DEFAULT_TIME = "09:00";
+
+// Hour (00–23) and minute (00,05,…,55) options for the time picker.
+const HOUR_OPTIONS: SelectOption<string>[] = Array.from({ length: 24 }, (_, h) => {
+  const v = String(h).padStart(2, "0");
+  return { value: v, label: v };
+});
+
+const MINUTE_OPTIONS: SelectOption<string>[] = Array.from({ length: 12 }, (_, i) => {
+  const v = String(i * 5).padStart(2, "0");
+  return { value: v, label: v };
+});
+
+/** Splits "HH:MM" into padded hour/minute, snapping minute to the nearest 5. */
+function splitTime(value: string): { hour: string; minute: string } {
+  const [rawH = "09", rawM = "00"] = (value || DEFAULT_TIME).split(":");
+  const h = Math.min(23, Math.max(0, parseInt(rawH, 10) || 0));
+  const mRaw = Math.min(59, Math.max(0, parseInt(rawM, 10) || 0));
+  const m = Math.min(55, Math.round(mRaw / 5) * 5);
+  return {
+    hour: String(h).padStart(2, "0"),
+    minute: String(m).padStart(2, "0"),
+  };
+}
+
+/** Hour + minute Select pair that reads/writes a zero-padded "HH:MM" string. */
+function TimeSelect({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  const { hour, minute } = splitTime(value);
+  return (
+    <div className="flex flex-1 items-center gap-2">
+      <Select
+        options={HOUR_OPTIONS}
+        value={hour}
+        onChange={(h) => onChange(`${h}:${minute}`)}
+        className="flex-1"
+      />
+      <span className="text-sm font-semibold text-muted" aria-hidden>
+        :
+      </span>
+      <Select
+        options={MINUTE_OPTIONS}
+        value={minute}
+        onChange={(m) => onChange(`${hour}:${m}`)}
+        className="flex-1"
+      />
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
 
 // Weekday labels — index 0 = Monday … 6 = Sunday (matches the contract).
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -102,7 +163,7 @@ const EMPTY_FORM: FormState = {
   title: "",
   prompt: "",
   frequency: "daily",
-  times: ["08:00"],
+  times: [DEFAULT_TIME],
   weekdays: [],
   enabled: true,
 };
@@ -178,7 +239,9 @@ function SchedulesView({
 
   function addTime() {
     setForm((f) =>
-      f.times.length >= MAX_TIMES ? f : { ...f, times: [...f.times, "09:00"] },
+      f.times.length >= MAX_TIMES
+        ? f
+        : { ...f, times: [...f.times, DEFAULT_TIME] },
     );
   }
 
@@ -215,7 +278,12 @@ function SchedulesView({
       title: task.title,
       prompt: task.prompt,
       frequency: task.frequency === "weekly" ? "weekly" : "daily",
-      times: task.times.length ? [...task.times] : ["08:00"],
+      times: task.times.length
+        ? task.times.map((t) => {
+            const { hour, minute } = splitTime(t);
+            return `${hour}:${minute}`;
+          })
+        : [DEFAULT_TIME],
       weekdays: [...task.weekdays],
       enabled: task.enabled,
     });
@@ -313,6 +381,25 @@ function SchedulesView({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Nudge: timezone still on UTC → reminders won't fire in local time */}
+      {tz === "UTC" && (
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-surface-2/60 p-4">
+          <span
+            aria-hidden
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+          >
+            <Clock className="h-4 w-4" />
+          </span>
+          <p className="text-sm leading-relaxed text-text">
+            Your timezone is set to UTC —{" "}
+            <span className="font-semibold text-primary">
+              set your real timezone in your profile
+            </span>{" "}
+            (Home → edit profile) so reminders fire in your local time.
+          </p>
+        </div>
+      )}
+
       {/* Create / edit form */}
       <Card>
         <SectionTitle icon={form.editingId != null ? Pencil : Plus}>
@@ -355,12 +442,10 @@ function SchedulesView({
             <div className="space-y-2">
               {form.times.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={t}
-                    onChange={(e) => setTime(i, e.target.value)}
-                    aria-label={`Time ${i + 1}`}
-                    className="flex-1 rounded-2xl border border-border bg-surface-2/60 px-3.5 py-2.5 text-sm text-text outline-none transition focus:border-primary focus:bg-surface focus:shadow-ring"
+                    onChange={(v) => setTime(i, v)}
+                    label={`Time ${i + 1}`}
                   />
                   <button
                     type="button"

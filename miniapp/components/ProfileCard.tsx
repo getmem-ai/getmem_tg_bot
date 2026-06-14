@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Crown, Cpu, CalendarClock, Pencil, Sparkles } from "lucide-react";
+import { Crown, Cpu, CalendarClock, Globe, Pencil, Sparkles } from "lucide-react";
 import type { TierInfo, User } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
@@ -122,6 +122,7 @@ export function ProfileCard({
 
       <div className="relative mt-4 grid grid-cols-1 gap-2.5 rounded-2xl bg-white/10 p-4 backdrop-blur">
         <HeroRow icon={Cpu} label="Model" value={model} />
+        <HeroRow icon={Globe} label="Timezone" value={user.timezone} />
         {tier && (
           <HeroRow
             icon={Crown}
