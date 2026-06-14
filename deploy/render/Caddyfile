@@ -1,0 +1,29 @@
+# Render's edge terminates TLS, so Caddy just serves plain HTTP on $PORT and
+# routes a single public origin to the private api + miniapp services:
+#
+#   /api/*  → FastAPI  (Mini App backend)
+#   /*      → Next.js  (Mini App frontend)
+#
+# The bot runs as a separate background worker in long-polling mode, so it needs
+# no public route here.
+{
+	auto_https off
+	admin off
+}
+
+:{$PORT} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy getmem-api:8000
+	}
+
+	handle {
+		reverse_proxy getmem-miniapp:3000
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

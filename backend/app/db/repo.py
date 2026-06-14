@@ -31,6 +31,8 @@ VISION_PREMIUM_ONLY_KEY = "vision_premium_only"
 WELCOME_KEY = "welcome_message"
 BRAND_NAME_KEY = "brand_name"
 BRAND_TAGLINE_KEY = "brand_tagline"
+STREAMING_ENABLED_KEY = "streaming_enabled"
+ONBOARDED_KEY = "onboarded"
 
 
 def _utcnow() -> dt.datetime:

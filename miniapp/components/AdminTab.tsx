@@ -11,19 +11,33 @@ import {
   Server,
   Shield,
   Users,
+  Wand2,
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
+import type { OnboardingState } from "@/lib/types";
 import { PageHeader } from "./Card";
+import { CardSkeleton } from "./Skeleton";
 import { AdminOverview } from "./admin/AdminOverview";
 import { RuntimeEditor } from "./admin/RuntimeEditor";
 import { ProvidersEditor } from "./admin/ProvidersEditor";
 import { TiersEditor } from "./admin/TiersEditor";
 import { UsersManager } from "./admin/UsersManager";
 import { BroadcastForm } from "./admin/BroadcastForm";
+import { TemplatesManager } from "./admin/TemplatesManager";
+import { SetupWizard } from "./admin/SetupWizard";
 import { PromptEditor } from "./PromptEditor";
 import { hapticSelection } from "@/lib/telegram";
 
 type IconType = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-type Section = "overview" | "users" | "bot" | "broadcast" | "providers" | "tiers";
+type Section =
+  | "overview"
+  | "users"
+  | "bot"
+  | "setup"
+  | "broadcast"
+  | "providers"
+  | "tiers";
 
 interface SectionDef {
   key: Section;
@@ -48,6 +62,7 @@ const SECTIONS: ReadonlyArray<SectionDef> = [
       </div>
     ),
   },
+  { key: "setup", title: "Setup & templates", subtitle: "Starter presets, backup & restore", icon: Wand2, render: () => <TemplatesManager /> },
   { key: "broadcast", title: "Broadcast", subtitle: "Message all users or a tier", icon: Megaphone, render: () => <BroadcastForm /> },
   { key: "providers", title: "Providers", subtitle: "OpenRouter, OpenAI, Anthropic & more", icon: Server, render: () => <ProvidersEditor /> },
   { key: "tiers", title: "Tiers", subtitle: "Plans, prices & model packages", icon: Layers, render: () => <TiersEditor /> },
@@ -56,7 +71,16 @@ const SECTIONS: ReadonlyArray<SectionDef> = [
 /** Admin tab — list-menu navigation. Only rendered when current user is_admin. */
 export function AdminTab() {
   const [active, setActive] = useState<Section | null>(null);
+  const onboarding = useApi<OnboardingState>(() => api.getOnboarding());
   const current = SECTIONS.find((s) => s.key === active);
+
+  // First run: guide the operator through a template before showing the menu.
+  if (onboarding.loading && !onboarding.data) {
+    return <CardSkeleton lines={5} />;
+  }
+  if (onboarding.data && !onboarding.data.onboarded) {
+    return <SetupWizard onDone={() => onboarding.reload()} />;
+  }
 
   if (current) {
     return (

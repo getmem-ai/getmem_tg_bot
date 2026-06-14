@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -102,6 +103,44 @@ class ModelRouter:
             except LLMError as exc:
                 last_error = f"{spec.provider}:{spec.model}: {exc}"
                 continue
+        raise LLMError(f"All {len(usable)} model(s) failed. Last: {last_error}")
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        specs: list[ResolvedSpec],
+        *,
+        max_tokens: int | None = None,
+        model_sink: list[str] | None = None,
+    ) -> AsyncIterator[str]:
+        """Stream text deltas with the same provider fallback as ``complete``:
+        if a spec fails *before its first token*, fall through to the next; once
+        tokens have started, surface errors as end-of-stream. The winning model
+        id is appended to ``model_sink`` (for persistence)."""
+        usable = [s for s in specs if s.api_key]
+        if not usable:
+            raise LLMError("No usable models — check provider keys and tier config.")
+        last_error = "unknown error"
+        for spec in usable:
+            adapter = self._adapter(spec)
+            started = False
+            try:
+                async for delta in adapter.stream(
+                    messages, [spec.model], max_tokens=max_tokens
+                ):
+                    if not started:
+                        started = True
+                        if model_sink is not None:
+                            model_sink.append(spec.model)
+                    yield delta
+            except LLMError as exc:
+                if started:
+                    return  # partial answer already delivered — stop here
+                last_error = f"{spec.provider}:{spec.model}: {exc}"
+                continue
+            if started:
+                return
+            last_error = f"{spec.provider}:{spec.model}: empty response"
         raise LLMError(f"All {len(usable)} model(s) failed. Last: {last_error}")
 
     async def aclose(self) -> None:

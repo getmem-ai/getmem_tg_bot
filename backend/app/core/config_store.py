@@ -234,6 +234,31 @@ class ConfigStore:
                     session, repo.MAX_TOKENS_KEY, str(max(0, value))
                 )
 
+    async def streaming_enabled(self) -> bool:
+        """Stream replies token-by-token (default: enabled)."""
+        stored = await self._get_str(repo.STREAMING_ENABLED_KEY)
+        if stored is None:
+            return True
+        return stored == "true"
+
+    async def set_streaming_enabled(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.STREAMING_ENABLED_KEY, "true" if on else "false"
+                )
+
+    async def onboarded(self) -> bool:
+        """Whether the operator finished the first-run setup wizard."""
+        return (await self._get_str(repo.ONBOARDED_KEY)) == "true"
+
+    async def set_onboarded(self, on: bool) -> None:
+        if self._db is not None:
+            async with self._db.session() as session:
+                await repo.set_setting(
+                    session, repo.ONBOARDED_KEY, "true" if on else "false"
+                )
+
     # -- vision (image understanding) -----------------------------------
 
     async def vision_enabled(self) -> bool:
@@ -482,6 +507,154 @@ class ConfigStore:
             if p is not None and p.usable:
                 return m.id
         return tier.models[0].id if tier.models else None
+
+    # -- config export / import / template apply -------------------------
+
+    CONFIG_VERSION = 1
+
+    async def export_config(self) -> dict[str, object]:
+        """Serialise the full editable config as a portable dict.
+
+        Provider **API keys are deliberately excluded** — only name/enabled/
+        models travel, matching the masked-key contract elsewhere.
+        """
+        providers = await self.providers()
+        tiers = await self.tiers()
+        vm = await self.vision_model()
+        return {
+            "version": self.CONFIG_VERSION,
+            "system_prompt": await self.system_prompt(),
+            "welcome_message": await self.welcome_message() or "",
+            "brand": {
+                "name": await self.brand_name(),
+                "tagline": await self.brand_tagline(),
+            },
+            "max_tokens": await self.max_tokens(),
+            "voice_enabled": await self.voice_enabled(),
+            "vision_enabled": await self.vision_enabled(),
+            "vision_premium_only": await self.vision_premium_only(),
+            "vision_model": {"provider": vm.provider, "id": vm.id},
+            "user_roles_enabled": await self.user_roles_enabled(),
+            "streaming_enabled": await self.streaming_enabled(),
+            "disabled_models": sorted(await self.disabled_models()),
+            "providers": {
+                name: {"enabled": p.enabled, "models": list(p.models)}
+                for name, p in providers.items()
+            },
+            "tiers": [
+                {
+                    "key": t.key,
+                    "name": t.name,
+                    "daily_limit": t.daily_limit,
+                    "price_stars": t.price_stars,
+                    "period_days": t.period_days,
+                    "models": [{"provider": m.provider, "id": m.id} for m in t.models],
+                }
+                for t in tiers.values()
+            ],
+        }
+
+    async def apply_config(self, cfg: dict[str, object]) -> dict[str, list[str]]:
+        """Apply a normalised config dict (from a template or an import).
+
+        Tier model packages are inherited from the current config when a tier
+        omits ``models`` (so templates never ship dead model slugs). Returns a
+        summary of what was applied and what the operator still needs to do.
+        """
+        applied: list[str] = []
+        todo: list[str] = []
+
+        sp = cfg.get("system_prompt")
+        if isinstance(sp, str) and sp.strip():
+            await self.set_system_prompt(sp)
+            applied.append("system prompt")
+        if isinstance(cfg.get("welcome_message"), str):
+            await self.set_welcome_message(cfg["welcome_message"])  # type: ignore[arg-type]
+            applied.append("welcome message")
+        brand = cfg.get("brand")
+        if isinstance(brand, dict) and brand.get("name"):
+            await self.set_brand(str(brand.get("name", "")), str(brand.get("tagline", "")))
+            applied.append("branding")
+        if "max_tokens" in cfg:
+            try:
+                await self.set_max_tokens(int(cfg["max_tokens"]))  # type: ignore[arg-type]
+                applied.append("max tokens")
+            except (TypeError, ValueError):
+                pass
+
+        toggles: list[tuple[str, object, str]] = [
+            ("voice_enabled", self.set_voice_enabled, "voice"),
+            ("vision_enabled", self.set_vision_enabled, "vision"),
+            ("vision_premium_only", self.set_vision_premium_only, "vision premium-only"),
+            ("user_roles_enabled", self.set_user_roles_enabled, "personal roles"),
+            ("streaming_enabled", self.set_streaming_enabled, "streaming"),
+        ]
+        for key, setter, label in toggles:
+            if isinstance(cfg.get(key), bool):
+                await setter(cfg[key])  # type: ignore[operator]
+                applied.append(label)
+
+        vm = cfg.get("vision_model")
+        if isinstance(vm, dict) and vm.get("id"):
+            await self.set_vision_model(
+                str(vm.get("provider", "openrouter")), str(vm["id"])
+            )
+            applied.append("vision model")
+        if isinstance(cfg.get("disabled_models"), list):
+            await self.set_disabled_models([str(m) for m in cfg["disabled_models"]])  # type: ignore[union-attr]
+
+        provs = cfg.get("providers")
+        if isinstance(provs, dict):
+            current = await self.providers()
+            for name, p in provs.items():
+                if name not in current or not isinstance(p, dict):
+                    continue
+                try:
+                    await self.set_provider(
+                        name,
+                        enabled=bool(p["enabled"]) if "enabled" in p else None,
+                        models=(
+                            [str(m) for m in p["models"]]
+                            if isinstance(p.get("models"), list)
+                            else None
+                        ),
+                    )
+                except ValueError:
+                    continue
+            for name, prov in (await self.providers()).items():
+                if prov.enabled and prov.requires_key and not prov.api_key:
+                    todo.append(f"add an API key for {name}")
+
+        tiers = cfg.get("tiers")
+        if isinstance(tiers, list):
+            current_tiers = await self.tiers()
+            fallback = [
+                {"provider": m.provider, "id": m.id}
+                for m in self._default_tiers()["premium"].models
+            ]
+            out: list[dict[str, object]] = []
+            for t in tiers:
+                if not isinstance(t, dict) or not t.get("key"):
+                    continue
+                key = str(t["key"])
+                models = t.get("models")
+                if not isinstance(models, list) or not models:
+                    cur = current_tiers.get(key)
+                    if cur is not None:
+                        models = [{"provider": m.provider, "id": m.id} for m in cur.models]
+                    elif key == "free":
+                        models = [
+                            {"provider": m.provider, "id": m.id}
+                            for m in self._default_free().models
+                        ]
+                    else:
+                        models = fallback
+                out.append({**t, "models": models})
+            if out:
+                await self.set_tiers(out)
+                applied.append("tiers & limits")
+
+        return {"applied": applied, "todo": todo}
 
 
 def _slug(value: str) -> str:

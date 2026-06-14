@@ -14,6 +14,7 @@ model(s) and raise :class:`LLMError` on failure so the router can move on.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from openai import APIError, AsyncOpenAI
@@ -83,4 +84,47 @@ class OpenAICompatLLM:
                 last_error = f"{model}: empty response"
                 continue
             return Completion(text=text, model=resp.model or model)
+        raise LLMError(last_error)
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        models: list[str],
+        *,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+        if not models:
+            raise LLMError("No models available to call.")
+        last_error = "unknown error"
+        for model in models:
+            try:
+                stream = await self._client.chat.completions.create(
+                    model=model,
+                    messages=messages,  # type: ignore[arg-type]
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+            except APIError as exc:
+                last_error = f"{model}: {exc}"
+                log.info("model %s stream failed (%s), trying next", model, exc)
+                continue
+            got = False
+            try:
+                async for chunk in stream:
+                    choices = chunk.choices or []
+                    delta = (choices[0].delta.content if choices else None) or ""
+                    if delta:
+                        got = True
+                        yield delta
+            except APIError as exc:
+                if got:
+                    log.info("model %s stream ended early (%s)", model, exc)
+                    return
+                last_error = f"{model}: {exc}"
+                continue
+            if got:
+                return
+            last_error = f"{model}: empty response"
         raise LLMError(last_error)

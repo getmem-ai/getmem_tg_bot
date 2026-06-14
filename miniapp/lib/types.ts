@@ -190,6 +190,7 @@ export interface RuntimeResponse {
   welcome_message: string;
   brand_name: string;
   brand_tagline: string;
+  streaming_enabled: boolean;
 }
 
 export interface RuntimeUpdate {
@@ -205,6 +206,31 @@ export interface RuntimeUpdate {
   welcome_message?: string;
   brand_name?: string;
   brand_tagline?: string;
+  streaming_enabled?: boolean;
+}
+
+export interface BotTemplate {
+  key: string;
+  name: string;
+  emoji: string;
+  description: string;
+}
+
+export interface TemplatesResponse {
+  templates: BotTemplate[];
+}
+
+export interface ConfigApplyResult {
+  applied: string[];
+  todo: string[];
+}
+
+export interface OnboardingState {
+  onboarded: boolean;
+  has_openrouter_key: boolean;
+  system_prompt_is_default: boolean;
+  tiers_count: number;
+  providers_configured: number;
 }
 
 export interface ProviderConfig {

@@ -12,6 +12,29 @@ admin-configurable **priced tiers & per-user limits**, per-user roles, and a
 > *remembers its users* — and monetization, limits, voice and admin tooling are
 > already built in. You ship a **business**, not a prototype.
 
+## 🎛️ Starter templates — pick a use case, launch in one tap
+
+After install, the **Admin → Setup wizard** lets you apply a ready-made preset
+(persona + welcome message + branding + tiers + feature toggles). No blank
+prompt to write. Templates live in
+[`backend/app/templates/`](../backend/app/templates/) — copy one to make your own.
+
+| Template | For | Notable |
+| --- | --- | --- |
+| 🧠 Personal memory assistant | Everyone | Memory-first default, voice + vision |
+| 💬 Customer support / FAQ | Support teams | Professional tone, single free tier |
+| 🗣️ Language tutor | Coaches / learners | Corrections + voice practice |
+| 🏋️ Fitness & nutrition coach | Coaches | Vision on — calories from a meal photo |
+| 📚 Study buddy | Educators / students | Socratic, quizzes, tracks weak spots |
+| ✈️ Travel planner | Creators | Itineraries tuned to taste & budget |
+| 💻 Coding helper | Devs | Runnable snippets, higher token cap |
+| 🌙 Journaling companion | Wellness | Reflective, memory-first |
+| 🤝 Community concierge | Channel owners | Free perk + premium upsell |
+| 🎯 Sales / lead qualifier | Businesses | Qualifies prospects conversationally |
+
+You can re-apply a template, or **export/import your whole config** as JSON
+(to back up or clone another bot) under **Admin → Setup & templates**.
+
 ## Why it's useful
 
 - **Launch in minutes, not weeks.** One command sets up the bot, API, dashboard,
@@ -32,9 +55,10 @@ admin-configurable **priced tiers & per-user limits**, per-user roles, and a
 ## Who it's for
 
 ### 1. Indie hacker shipping a monetizable AI product 🚀
-Set one `SYSTEM_PROMPT` to define a niche ("travel planner", "study buddy"), run
-the installer, and you have memory + Stars checkout + tiers + a dashboard on day
-one. Validate cheaply on free models, then turn on premium tiers.
+Run the installer, apply a starter template (e.g. **Travel planner** or **Study
+buddy**) from the setup wizard, and you have a persona + memory + Stars checkout
++ tiers + a dashboard on day one. Validate cheaply on free models, then turn on
+premium tiers.
 
 ### 2. Coach / creator monetizing expertise 💼
 A language teacher, nutritionist, trainer or finance coach sells a paid AI

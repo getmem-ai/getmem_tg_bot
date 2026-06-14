@@ -10,7 +10,10 @@ import type {
   AdminUserUpdate,
   AnalyticsResponse,
   BroadcastResponse,
+  ConfigApplyResult,
   HealthResponse,
+  OnboardingState,
+  TemplatesResponse,
   InvoiceResponse,
   MeResponse,
   ProfileResponse,
@@ -151,6 +154,24 @@ export const api = {
   getTiers: () => request<TiersResponse>("/admin/tiers"),
   setTiers: (tiers: TierUpdate[]) =>
     putJson<TiersResponse>("/admin/tiers", { tiers }),
+
+  // ---- Admin: templates, config backup, onboarding ----
+  getTemplates: () => request<TemplatesResponse>("/admin/templates"),
+  applyTemplate: (key: string) =>
+    request<ConfigApplyResult>(
+      `/admin/templates/${encodeURIComponent(key)}/apply`,
+      { method: "POST" },
+    ),
+  exportConfig: () => request<Record<string, unknown>>("/admin/config/export"),
+  importConfig: (config: Record<string, unknown>) =>
+    request<ConfigApplyResult>("/admin/config/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config }),
+    }),
+  getOnboarding: () => request<OnboardingState>("/admin/onboarding"),
+  completeOnboarding: () =>
+    request<OnboardingState>("/admin/onboarding/complete", { method: "POST" }),
 
   // ---- Admin: analytics & broadcast ----
   getAnalytics: (days = 14) =>

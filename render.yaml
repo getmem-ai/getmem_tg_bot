@@ -1,0 +1,95 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Render Blueprint — one-click hosted deploy (no Docker/VPS needed).
+#
+#  Click "Deploy to Render", paste BOT_TOKEN, ADMIN_IDS and OPENROUTER_API_KEY,
+#  and Render provisions a managed Postgres plus four services:
+#
+#    • getmem          (public)  — Caddy, the single HTTPS entry point
+#    • getmem-api      (private) — FastAPI backend for the Mini App
+#    • getmem-miniapp  (private) — Next.js Mini App, calls the API at /api
+#    • getmem-bot      (worker)  — the Telegram bot in long-polling mode
+#
+#  After the first deploy, copy the public URL of the "getmem" service into the
+#  MINIAPP_URL env var (so the bot's "Open app" button works) and set that URL
+#  as your Mini App URL in @BotFather.
+#
+#  Docs: https://render.com/docs/blueprint-spec
+# ─────────────────────────────────────────────────────────────────────────────
+
+databases:
+  - name: getmem-db
+    databaseName: getmem_bot
+    user: getmem
+    plan: free
+
+envVarGroups:
+  - name: getmem-shared
+    envVars:
+      # Secrets the operator pastes at deploy time.
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      # Optional long-term memory (leave blank to disable).
+      - key: GETMEM_API_KEY
+        sync: false
+      # Public URL of the "getmem" web service — paste it here after first deploy.
+      - key: MINIAPP_URL
+        sync: false
+      # Database parts (assembled into the async DSN by the app).
+      - key: POSTGRES_HOST
+        fromDatabase: { name: getmem-db, property: host }
+      - key: POSTGRES_PORT
+        fromDatabase: { name: getmem-db, property: port }
+      - key: POSTGRES_USER
+        fromDatabase: { name: getmem-db, property: user }
+      - key: POSTGRES_PASSWORD
+        fromDatabase: { name: getmem-db, property: password }
+      - key: POSTGRES_DB
+        fromDatabase: { name: getmem-db, property: database }
+
+services:
+  # Public HTTPS entry — Caddy proxies /api/* to the API and /* to the Mini App.
+  - type: web
+    name: getmem
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: ./deploy/render
+    healthCheckPath: /api/health
+
+  # FastAPI backend (private). Runs DB migrations before each deploy.
+  - type: pserv
+    name: getmem-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: python -m app.entrypoints.api
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - fromGroup: getmem-shared
+
+  # Next.js Mini App (private). The API base is baked in at build time.
+  - type: pserv
+    name: getmem-miniapp
+    runtime: docker
+    plan: free
+    dockerfilePath: ./miniapp/Dockerfile
+    dockerContext: ./miniapp
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE
+        value: /api
+
+  # Telegram bot — background worker, long-polling (no public route needed).
+  - type: worker
+    name: getmem-bot
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: python -m app.entrypoints.bot
+    envVars:
+      - fromGroup: getmem-shared

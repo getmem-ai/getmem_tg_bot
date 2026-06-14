@@ -93,6 +93,27 @@ The installer checks Docker, downloads the project, asks for your token / admin 
 keys (secrets hidden), generates a `.env`, and brings the stack up. Flags:
 `--prod` (domain + Caddy auto-HTTPS), `--voice`, `--non-interactive`, `--dir <path>`.
 
+### ☁️ …or deploy hosted in one click
+
+No Docker, no VPS — deploy to [Render](https://render.com) from the
+[`render.yaml`](render.yaml) Blueprint (managed Postgres + bot + API + Mini App):
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/getmem-ai/getmem_tg_bot)
+
+Paste `BOT_TOKEN`, `ADMIN_IDS` and `OPENROUTER_API_KEY` when prompted. After the
+first deploy, copy the public URL of the **getmem** service into the `MINIAPP_URL`
+env var and set the same URL as your Mini App in @BotFather. (Other hosts that
+read a Docker Compose file — Railway, Coolify, Dokploy — can use
+[`deploy/`](deploy/); see [deploy/README.md](deploy/README.md).)
+
+### 🚀 First run
+
+On first open of the **Admin** tab, a short setup wizard lets you pick a
+[starter template](backend/app/templates/) (language tutor, support bot, fitness
+coach, …) — it configures the persona, welcome message, branding, tiers and
+feature toggles in one tap. You can re-apply templates or export/import your whole
+config any time under **Admin → Setup & templates**.
+
 <details>
 <summary>Prefer to do it manually?</summary>
 

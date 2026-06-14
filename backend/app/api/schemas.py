@@ -136,6 +136,7 @@ class RuntimeOut(BaseModel):
     welcome_message: str  # "" when using the built-in default
     brand_name: str
     brand_tagline: str
+    streaming_enabled: bool
 
 
 class RuntimeIn(BaseModel):
@@ -151,6 +152,7 @@ class RuntimeIn(BaseModel):
     welcome_message: str | None = None
     brand_name: str | None = None
     brand_tagline: str | None = None
+    streaming_enabled: bool | None = None
 
 
 class ProviderTestIn(BaseModel):
@@ -324,3 +326,34 @@ class AnalyticsOut(BaseModel):
 
 class HealthOut(BaseModel):
     status: str
+
+
+# -- templates, config backup, onboarding ------------------------------------
+
+
+class TemplateOut(BaseModel):
+    key: str
+    name: str
+    emoji: str = ""
+    description: str = ""
+
+
+class TemplatesOut(BaseModel):
+    templates: list[TemplateOut]
+
+
+class ConfigApplyResult(BaseModel):
+    applied: list[str]
+    todo: list[str]
+
+
+class ConfigImportIn(BaseModel):
+    config: dict
+
+
+class OnboardingOut(BaseModel):
+    onboarded: bool
+    has_openrouter_key: bool
+    system_prompt_is_default: bool
+    tiers_count: int
+    providers_configured: int  # providers that are enabled AND have a usable key

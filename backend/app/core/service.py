@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from collections.abc import AsyncIterator
 
 from ..config import Settings
 from ..db import Database, repo
@@ -209,34 +210,26 @@ class ChatService:
         )
         return completion
 
-    async def reply(self, user: User, user_text: str) -> Completion:
-        """Produce an assistant reply for ``user_text``."""
+    async def _prepare(
+        self, user: User, user_text: str
+    ) -> tuple[list[dict], list[ResolvedSpec], int | None]:
+        """Assemble the prompt + credentialed model pool for a text request."""
         tg_id = user.id
-
-        # 1. Long-term memory recall (best-effort, never blocks chatting).
+        # Long-term memory recall (best-effort, never blocks chatting).
         context = await self.memory.recall(tg_id, user_text)
-
-        # 2. Short-term window + today's usage (for the account block).
+        # Short-term window + today's usage (for the account block).
         async with self.db.session() as session:
             history = await repo.recent_history(
                 session, tg_id, self.settings.max_history_turns
             )
             used_today = await repo.used_today(session, tg_id)
-
-        # 3. Live config: persona, tier, account snapshot and (optional) role.
+        # Live config: persona, tier, account snapshot and (optional) role.
         system_prompt = await self.config.system_prompt()
         tier = await self.config.tier_for_user(user)
         account = _account_summary(tier, used_today, user.premium_until)
         user_role = ""
-        if (
-            user.role
-            and user.role_enabled
-            and await self.config.user_roles_enabled()
-        ):
+        if user.role and user.role_enabled and await self.config.user_roles_enabled():
             user_role = user.role
-
-        # 4. Build the prompt (persona stays its own message so it stays
-        #    cache-friendly; role + account + memory go in a dynamic message).
         messages = ContextBuilder.build(
             system_prompt=system_prompt,
             account_info=account,
@@ -247,18 +240,45 @@ class ChatService:
             preferences=_preferences_text(user),
         )
         max_tokens = await self.config.max_tokens() or None
-        completion = await self.router.complete(
-            messages, await self.resolve_pool(user, tier), max_tokens=max_tokens
-        )
+        pool = await self.resolve_pool(user, tier)
+        return messages, pool, max_tokens
 
-        # 5. Persist exchange + consume quota.
+    async def _finalize(
+        self, tg_id: int, user_text: str, reply_text: str, model: str
+    ) -> None:
+        """Persist the exchange, consume quota, and ingest into long-term memory."""
         async with self.db.session() as session:
             await repo.add_message(session, tg_id, "user", user_text)
             await repo.add_message(
-                session, tg_id, "assistant", completion.text, model=completion.model
+                session, tg_id, "assistant", reply_text, model=model
             )
             await repo.consume_quota(session, tg_id)
+        self.memory.remember_background(tg_id, user_text, reply_text)
 
-        # 6. Fire long-term ingestion without blocking the reply.
-        self.memory.remember_background(tg_id, user_text, completion.text)
+    async def reply(self, user: User, user_text: str) -> Completion:
+        """Produce an assistant reply for ``user_text`` (non-streaming)."""
+        messages, pool, max_tokens = await self._prepare(user, user_text)
+        completion = await self.router.complete(messages, pool, max_tokens=max_tokens)
+        await self._finalize(user.id, user_text, completion.text, completion.model)
         return completion
+
+    async def reply_stream(
+        self, user: User, user_text: str
+    ) -> AsyncIterator[str]:
+        """Stream an assistant reply token-by-token, then persist + ingest.
+
+        Yields text deltas. Raises :class:`LLMError` if no model produces tokens
+        (the caller falls back to the 'all busy' path)."""
+        messages, pool, max_tokens = await self._prepare(user, user_text)
+        model_sink: list[str] = []
+        parts: list[str] = []
+        async for delta in self.router.stream(
+            messages, pool, max_tokens=max_tokens, model_sink=model_sink
+        ):
+            parts.append(delta)
+            yield delta
+        text = "".join(parts).strip()
+        if not text:
+            raise LLMError("Empty stream.")
+        model = model_sink[0] if model_sink else (pool[0].model if pool else "")
+        await self._finalize(user.id, user_text, text, model)

@@ -9,6 +9,7 @@ required. We translate the shared message list accordingly. Implements
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from anthropic import APIError, AsyncAnthropic
@@ -68,4 +69,46 @@ class AnthropicLLM:
                 last_error = f"{model}: empty response"
                 continue
             return Completion(text=text, model=getattr(resp, "model", model) or model)
+        raise LLMError(last_error)
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        models: list[str],
+        *,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+        if not models:
+            raise LLMError("No models available to call.")
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        convo = [
+            {"role": m["role"], "content": m["content"]}
+            for m in messages
+            if m["role"] in ("user", "assistant")
+        ]
+        last_error = "unknown error"
+        for model in models:
+            got = False
+            try:
+                async with self._client.messages.stream(
+                    model=model,
+                    system=system or None,  # type: ignore[arg-type]
+                    messages=convo,  # type: ignore[arg-type]
+                    max_tokens=max_tokens or _DEFAULT_MAX_TOKENS,
+                    temperature=temperature,
+                ) as stream:
+                    async for delta in stream.text_stream:
+                        if delta:
+                            got = True
+                            yield delta
+            except APIError as exc:
+                if got:
+                    log.info("anthropic model %s stream ended early (%s)", model, exc)
+                    return
+                last_error = f"{model}: {exc}"
+                continue
+            if got:
+                return
+            last_error = f"{model}: empty response"
         raise LLMError(last_error)

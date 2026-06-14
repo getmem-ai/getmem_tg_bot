@@ -13,6 +13,7 @@ import {
   Save,
   SlidersHorizontal,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
@@ -113,6 +114,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
   const [visionPremiumOnly, setVisionPremiumOnly] = useState(
     initial.vision_premium_only,
   );
+  const [streaming, setStreaming] = useState(initial.streaming_enabled);
   const [welcome, setWelcome] = useState(initial.welcome_message);
   const [brandName, setBrandName] = useState(initial.brand_name);
   const [brandTagline, setBrandTagline] = useState(initial.brand_tagline);
@@ -168,6 +170,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
         vision_model: visionModelId.trim() || undefined,
         vision_provider: visionProvider,
         vision_premium_only: visionPremiumOnly,
+        streaming_enabled: streaming,
         welcome_message: welcome,
         brand_name: brandName,
         brand_tagline: brandTagline,
@@ -179,6 +182,7 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       setVision(res.vision_enabled);
       setVisionSel(`${res.vision_provider}:${res.vision_model}`);
       setVisionPremiumOnly(res.vision_premium_only);
+      setStreaming(res.streaming_enabled);
       setWelcome(res.welcome_message);
       setBrandName(res.brand_name);
       setBrandTagline(res.brand_tagline);
@@ -293,6 +297,16 @@ function RuntimeForm({ initial }: { initial: RuntimeResponse }) {
       {/* Generation — cost/length controls. */}
       <Card>
         <SectionTitle icon={SlidersHorizontal}>Generation</SectionTitle>
+        <div className="mb-2">
+          <ToggleRow
+            icon={Zap}
+            title="Stream replies"
+            desc="Show the answer live, word by word, as it's generated."
+            checked={streaming}
+            onChange={setStreaming}
+            label="Stream replies"
+          />
+        </div>
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-text">Max tokens per reply</p>

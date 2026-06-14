@@ -9,6 +9,7 @@ voice service), so each can be swapped or extended without touching callers.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
@@ -42,6 +43,18 @@ class LLMProvider(Protocol):
         max_tokens: int | None = None,
     ) -> Completion:
         """Return a completion, trying ``models`` in order. Raises :class:`LLMError`."""
+        ...
+
+    def stream(
+        self,
+        messages: list[Message],
+        models: list[str],
+        *,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+        """Yield reply text deltas, trying ``models`` in order. Raises
+        :class:`LLMError` if no model produces any tokens."""
         ...
 
     async def aclose(self) -> None: ...

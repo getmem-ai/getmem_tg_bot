@@ -38,6 +38,8 @@ from .schemas import (
     BrandOut,
     BroadcastIn,
     BroadcastOut,
+    ConfigApplyResult,
+    ConfigImportIn,
     DayCount,
     HealthOut,
     ModelCount,
@@ -47,6 +49,7 @@ from .schemas import (
     InvoiceOut,
     MeOut,
     ModelSpecOut,
+    OnboardingOut,
     ProfileIn,
     ProfileOut,
     PromptIn,
@@ -61,6 +64,8 @@ from .schemas import (
     RuntimeOut,
     SetModelIn,
     SetModelOut,
+    TemplateOut,
+    TemplatesOut,
     TierInfo,
     TierOut,
     TiersIn,
@@ -394,6 +399,7 @@ async def _runtime_out(config: ConfigStore) -> RuntimeOut:
         welcome_message=await config.welcome_message() or "",
         brand_name=await config.brand_name(),
         brand_tagline=await config.brand_tagline(),
+        streaming_enabled=await config.streaming_enabled(),
     )
 
 
@@ -429,6 +435,8 @@ async def set_runtime(
         await config.set_vision_model(provider, body.vision_model.strip())
     if body.vision_premium_only is not None:
         await config.set_vision_premium_only(body.vision_premium_only)
+    if body.streaming_enabled is not None:
+        await config.set_streaming_enabled(body.streaming_enabled)
     if body.welcome_message is not None:
         await config.set_welcome_message(body.welcome_message)
     if body.brand_name is not None or body.brand_tagline is not None:
@@ -440,6 +448,98 @@ async def set_runtime(
         )
         await config.set_brand(name or "GetMem", tagline)
     return await _runtime_out(config)
+
+
+# -- admin: templates, config backup, onboarding -----------------------------
+
+
+@router.get("/admin/templates", response_model=TemplatesOut)
+async def get_templates(
+    _admin: TelegramUser = Depends(require_admin),
+) -> TemplatesOut:
+    from ..core import templates as tpl
+
+    return TemplatesOut(
+        templates=[
+            TemplateOut(
+                key=t["key"],
+                name=str(t.get("name", t["key"])),
+                emoji=str(t.get("emoji", "")),
+                description=str(t.get("description", "")),
+            )
+            for t in tpl.list_templates()
+        ]
+    )
+
+
+@router.post("/admin/templates/{key}/apply", response_model=ConfigApplyResult)
+async def apply_template(
+    key: str,
+    _admin: TelegramUser = Depends(require_admin),
+    config: ConfigStore = Depends(get_config),
+) -> ConfigApplyResult:
+    from ..core import templates as tpl
+
+    template = tpl.get_template(key)
+    if template is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Unknown template."
+        )
+    result = await config.apply_config(tpl.template_to_config(template))
+    return ConfigApplyResult(applied=result["applied"], todo=result["todo"])
+
+
+@router.get("/admin/config/export")
+async def export_config(
+    _admin: TelegramUser = Depends(require_admin),
+    config: ConfigStore = Depends(get_config),
+) -> dict:
+    """Full editable config as portable JSON (provider API keys excluded)."""
+    return await config.export_config()
+
+
+@router.post("/admin/config/import", response_model=ConfigApplyResult)
+async def import_config(
+    body: ConfigImportIn,
+    _admin: TelegramUser = Depends(require_admin),
+    config: ConfigStore = Depends(get_config),
+) -> ConfigApplyResult:
+    cfg = body.config
+    version = cfg.get("version")
+    if version not in (None, ConfigStore.CONFIG_VERSION):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported config version: {version}.",
+        )
+    result = await config.apply_config(cfg)
+    return ConfigApplyResult(applied=result["applied"], todo=result["todo"])
+
+
+@router.get("/admin/onboarding", response_model=OnboardingOut)
+async def get_onboarding(
+    _admin: TelegramUser = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
+    config: ConfigStore = Depends(get_config),
+) -> OnboardingOut:
+    providers = await config.providers()
+    configured = sum(1 for p in providers.values() if p.enabled and p.usable)
+    return OnboardingOut(
+        onboarded=await config.onboarded(),
+        has_openrouter_key=bool(settings.openrouter_api_key),
+        system_prompt_is_default=await config.system_prompt_is_default(),
+        tiers_count=len(await config.tiers()),
+        providers_configured=configured,
+    )
+
+
+@router.post("/admin/onboarding/complete", response_model=OnboardingOut)
+async def complete_onboarding(
+    _admin: TelegramUser = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
+    config: ConfigStore = Depends(get_config),
+) -> OnboardingOut:
+    await config.set_onboarded(True)
+    return await get_onboarding(_admin=_admin, settings=settings, config=config)
 
 
 @router.post("/admin/providers/test", response_model=ProviderTestOut)

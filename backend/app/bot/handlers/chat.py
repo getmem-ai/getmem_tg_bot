@@ -14,7 +14,7 @@ import base64
 import io
 import logging
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from aiogram import Bot, F, Router
 from aiogram.enums import ChatAction
@@ -69,7 +69,14 @@ async def on_text(
     if message.from_user is None or not message.text:
         return
     text = message.text
-    await respond(message, db, config, service, lambda u: service.reply(u, text))
+    await respond(
+        message,
+        db,
+        config,
+        service,
+        lambda u: service.reply(u, text),
+        stream=lambda u: service.reply_stream(u, text),
+    )
 
 
 @router.message(F.photo)
@@ -143,7 +150,14 @@ async def on_voice(
 
     # Show the user what we heard, then answer it like any other message.
     await message.answer(texts.voice_heard(text))
-    await respond(message, db, config, service, lambda u: service.reply(u, text))
+    await respond(
+        message,
+        db,
+        config,
+        service,
+        lambda u: service.reply(u, text),
+        stream=lambda u: service.reply_stream(u, text),
+    )
 
 
 async def respond(
@@ -152,6 +166,8 @@ async def respond(
     config: ConfigStore,
     service: ChatService,
     generate: Callable[[User], Awaitable[Completion]],
+    *,
+    stream: Callable[[User], AsyncIterator[str]] | None = None,
 ) -> None:
     """Shared reply path: gate (ban/pause/quota), think, generate, deliver."""
     tg = message.from_user
@@ -198,13 +214,23 @@ async def respond(
         asyncio.create_task(_thinking_hint(placeholder)) if show_hint else None
     )
 
+    use_stream = stream is not None and await config.streaming_enabled()
+
     try:
         async with ChatActionSender(
             bot=message.bot, chat_id=message.chat.id, action=ChatAction.TYPING
         ):
-            completion = await asyncio.wait_for(
-                generate(user_obj), timeout=timeout
-            )
+            if use_stream:
+                await _deliver_stream(
+                    placeholder,
+                    message,
+                    stream(user_obj),  # type: ignore[misc]
+                    hint_task=hint_task,
+                    is_premium=is_premium,
+                    first_token_timeout=timeout,
+                )
+                return
+            completion = await asyncio.wait_for(generate(user_obj), timeout=timeout)
     except (LLMError, asyncio.TimeoutError) as exc:
         # No model answered in time / all busy — nudge free users to upgrade.
         await _cancel(hint_task)
@@ -222,6 +248,77 @@ async def respond(
     # The model replies in Markdown; render it to Telegram-safe HTML.
     html_text = to_telegram_html(completion.text)
     chunks = _split_message(html_text)
+    await _safe_edit(placeholder, chunks[0])
+    for chunk in chunks[1:]:
+        await _send_html(message, chunk)
+
+
+# Min seconds between live edits — Telegram rate-limits edits to the same message.
+_STREAM_EDIT_INTERVAL = 1.2
+
+
+async def _deliver_stream(
+    placeholder: Message,
+    message: Message,
+    agen: AsyncIterator[str],
+    *,
+    hint_task: "asyncio.Task[None] | None",
+    is_premium: bool,
+    first_token_timeout: float,
+) -> None:
+    """Consume a text-delta stream, editing the placeholder live (throttled),
+    then render the final markdown→HTML answer. Falls back to the 'all busy'
+    message if no tokens ever arrive."""
+    loop = asyncio.get_event_loop()
+    it = agen.__aiter__()
+    parts: list[str] = []
+    started = False
+    rendered = ""
+    last_edit = 0.0
+
+    try:
+        while True:
+            try:
+                if not started:
+                    delta = await asyncio.wait_for(
+                        it.__anext__(), timeout=first_token_timeout
+                    )
+                else:
+                    delta = await it.__anext__()
+            except StopAsyncIteration:
+                break
+            except (LLMError, asyncio.TimeoutError) as exc:
+                if not started:
+                    await _cancel(hint_task)
+                    log.warning("stream unavailable for chat=%s: %r", message.chat.id, exc)
+                    await _safe_edit(placeholder, texts.all_busy(is_premium))
+                    return
+                break  # already streaming — deliver the partial answer
+
+            if not delta:
+                continue
+            if not started:
+                started = True
+                await _cancel(hint_task)
+            parts.append(delta)
+
+            now = loop.time()
+            if now - last_edit >= _STREAM_EDIT_INTERVAL:
+                preview = _split_message(to_telegram_html("".join(parts)))[0]
+                if preview and preview != rendered:
+                    rendered = preview
+                    await _safe_edit(placeholder, preview)
+                last_edit = now
+    finally:
+        aclose = getattr(agen, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    full = "".join(parts).strip()
+    if not full:
+        await _safe_edit(placeholder, texts.all_busy(is_premium))
+        return
+    chunks = _split_message(to_telegram_html(full))
     await _safe_edit(placeholder, chunks[0])
     for chunk in chunks[1:]:
         await _send_html(message, chunk)

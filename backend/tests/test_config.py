@@ -60,6 +60,29 @@ def test_context_builder_injects_role() -> None:
     assert "English teacher" in dynamic
 
 
+async def test_templates_load_and_flatten() -> None:
+    from app.core import templates as tpl
+
+    items = tpl.list_templates()
+    assert len(items) >= 8
+    personal = tpl.get_template("personal-assistant")
+    assert personal is not None and personal["system_prompt"]
+    cfg = tpl.template_to_config(personal)
+    # Toggles are flattened to the *_enabled keys apply_config expects.
+    assert "voice_enabled" in cfg and isinstance(cfg["voice_enabled"], bool)
+    assert "system_prompt" in cfg and "tiers" in cfg
+
+
+async def test_export_config_excludes_provider_keys(settings: Settings) -> None:
+    config = ConfigStore(None, settings)
+    exported = config and await config.export_config()
+    assert exported["version"] == ConfigStore.CONFIG_VERSION
+    # Provider entries must never carry api_key (secrets stay server-side).
+    for prov in exported["providers"].values():
+        assert "api_key" not in prov
+    assert "tiers" in exported and "system_prompt" in exported
+
+
 def test_context_builder_injects_preferences() -> None:
     msgs = ContextBuilder.build(
         system_prompt="Persona",
