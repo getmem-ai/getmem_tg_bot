@@ -77,6 +77,9 @@ const config: Config = {
         "grad-accent":
           "linear-gradient(135deg, #ffa45c 0%, #ff8a3d 60%, #f2701a 100%)",
         hero: "linear-gradient(140deg, #5b8cff 0%, #2f6bff 55%, #2257e0 100%)",
+        // Lighter, more vivid blue sweep for the profile card.
+        "grad-profile":
+          "linear-gradient(145deg, #7ca8ff 0%, #4f86ff 45%, #2f6bff 100%)",
       },
     },
   },

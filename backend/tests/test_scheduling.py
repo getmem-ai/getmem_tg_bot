@@ -63,6 +63,34 @@ def test_returns_none_when_unfireable() -> None:
     )
 
 
+def test_interval_every_3_days_from_anchor() -> None:
+    anchor = dt.date(2026, 6, 14)  # day 0
+    # 06:00 UTC on day 0 (anchor); 09:00 fires today (aligned). +3d, +6d ...
+    after = dt.datetime(2026, 6, 14, 6, 0, tzinfo=UTC)
+    nxt = compute_next_run(
+        timezone="UTC", frequency="interval", times=["09:00"], weekdays=[],
+        after=after, interval_days=3, anchor=anchor,
+    )
+    assert nxt == dt.datetime(2026, 6, 14, 9, 0, tzinfo=UTC)
+    # After today's 09:00 has passed, the next aligned day is +3.
+    after2 = dt.datetime(2026, 6, 14, 10, 0, tzinfo=UTC)
+    nxt2 = compute_next_run(
+        timezone="UTC", frequency="interval", times=["09:00"], weekdays=[],
+        after=after2, interval_days=3, anchor=anchor,
+    )
+    assert nxt2 == dt.datetime(2026, 6, 17, 9, 0, tzinfo=UTC)
+
+
+def test_as_needed_never_fires() -> None:
+    after = dt.datetime(2026, 6, 14, 6, 0, tzinfo=UTC)
+    assert (
+        compute_next_run(
+            timezone="UTC", frequency="as_needed", times=["09:00"], weekdays=[], after=after
+        )
+        is None
+    )
+
+
 def test_valid_timezone() -> None:
     assert valid_timezone("Europe/Moscow")
     assert valid_timezone("UTC")

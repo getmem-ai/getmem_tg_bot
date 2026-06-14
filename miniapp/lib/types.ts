@@ -49,13 +49,21 @@ export interface ProfileResponse {
   timezone: string;
 }
 
+export type ScheduleFrequency =
+  | "daily"
+  | "weekly"
+  | "interval"
+  | "as_needed"
+  | string;
+
 export interface ScheduledTask {
   id: number;
   title: string;
   prompt: string;
-  frequency: "daily" | "weekly" | string;
+  frequency: ScheduleFrequency;
   times: string[]; // ["08:00", "20:00"]
   weekdays: number[]; // 0=Mon … 6=Sun
+  interval_days: number | null; // used when frequency === "interval"
   enabled: boolean;
   next_run_at: string | null;
   last_run_at: string | null;
@@ -65,9 +73,10 @@ export interface ScheduledTask {
 export interface ScheduleInput {
   title: string;
   prompt: string;
-  frequency: string;
+  frequency: ScheduleFrequency;
   times: string[];
   weekdays: number[];
+  interval_days?: number | null;
   enabled: boolean;
 }
 

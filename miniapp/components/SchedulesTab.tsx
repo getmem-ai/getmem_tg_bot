@@ -3,15 +3,13 @@
 import { useMemo, useState } from "react";
 import {
   AlarmClock,
+  Bot,
   CalendarOff,
   Clock,
-  Pencil,
   Plus,
-  Save,
   Trash2,
-  X,
 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import type {
   ScheduleInput,
@@ -20,95 +18,33 @@ import type {
   SchedulesResponse,
 } from "@/lib/types";
 import { haptic } from "@/lib/telegram";
-import { truncate } from "@/lib/format";
+import { formatDate, truncate } from "@/lib/format";
+import {
+  dayLabel,
+  frequencyLabel,
+  occursOnDay,
+  timeChip,
+  timeChips,
+} from "@/lib/schedule";
 import { PageHeader, Card, SectionTitle } from "./Card";
 import { CardSkeleton } from "./Skeleton";
 import { ErrorState } from "./ErrorState";
-import {
-  Button,
-  EmptyState,
-  Field,
-  Input,
-  SaveMessage,
-  SegmentedControl,
-  Select,
-  Toggle,
-  type SaveStatus,
-  type SelectOption,
-} from "./ui";
+import { ScheduleCalendar } from "./ScheduleCalendar";
+import { ScheduleWizard } from "./ScheduleWizard";
+import { EmptyState, Toggle } from "./ui";
 
-const MAX_TIMES = 6;
-
-const DEFAULT_TIME = "09:00";
-
-// Hour (00–23) and minute (00,05,…,55) options for the time picker.
-const HOUR_OPTIONS: SelectOption<string>[] = Array.from({ length: 24 }, (_, h) => {
-  const v = String(h).padStart(2, "0");
-  return { value: v, label: v };
-});
-
-const MINUTE_OPTIONS: SelectOption<string>[] = Array.from({ length: 12 }, (_, i) => {
-  const v = String(i * 5).padStart(2, "0");
-  return { value: v, label: v };
-});
-
-/** Splits "HH:MM" into padded hour/minute, snapping minute to the nearest 5. */
-function splitTime(value: string): { hour: string; minute: string } {
-  const [rawH = "09", rawM = "00"] = (value || DEFAULT_TIME).split(":");
-  const h = Math.min(23, Math.max(0, parseInt(rawH, 10) || 0));
-  const mRaw = Math.min(59, Math.max(0, parseInt(rawM, 10) || 0));
-  const m = Math.min(55, Math.round(mRaw / 5) * 5);
+/** Builds the full ScheduleInput payload from an existing task (for toggles). */
+function inputFromTask(task: ScheduledTask, enabled: boolean): ScheduleInput {
   return {
-    hour: String(h).padStart(2, "0"),
-    minute: String(m).padStart(2, "0"),
+    title: task.title,
+    prompt: task.prompt,
+    frequency: task.frequency,
+    times: task.times,
+    weekdays: task.weekdays,
+    interval_days: task.interval_days,
+    enabled,
   };
 }
-
-/** Hour + minute Select pair that reads/writes a zero-padded "HH:MM" string. */
-function TimeSelect({
-  value,
-  onChange,
-  label,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  label: string;
-}) {
-  const { hour, minute } = splitTime(value);
-  return (
-    <div className="flex flex-1 items-center gap-2">
-      <Select
-        options={HOUR_OPTIONS}
-        value={hour}
-        onChange={(h) => onChange(`${h}:${minute}`)}
-        className="flex-1"
-      />
-      <span className="text-sm font-semibold text-muted" aria-hidden>
-        :
-      </span>
-      <Select
-        options={MINUTE_OPTIONS}
-        value={minute}
-        onChange={(m) => onChange(`${hour}:${m}`)}
-        className="flex-1"
-      />
-      <span className="sr-only">{label}</span>
-    </div>
-  );
-}
-
-// Weekday labels — index 0 = Monday … 6 = Sunday (matches the contract).
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-type Frequency = "daily" | "weekly";
-
-const FREQUENCIES: { value: Frequency; label: string }[] = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-];
-
-const textareaClass =
-  "w-full resize-y rounded-2xl border border-border bg-surface-2/60 p-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-primary focus:bg-surface focus:shadow-ring";
 
 /** Formats an ISO timestamp into the user's timezone, e.g. "Jun 14, 08:00". */
 function formatInTz(iso: string | null, tz: string): string {
@@ -124,7 +60,6 @@ function formatInTz(iso: string | null, tz: string): string {
       minute: "2-digit",
     });
   } catch {
-    // Invalid tz — fall back to local time.
     return d.toLocaleString(undefined, {
       month: "short",
       day: "numeric",
@@ -134,50 +69,18 @@ function formatInTz(iso: string | null, tz: string): string {
   }
 }
 
-/** Human summary of a task's schedule, e.g. "Daily · 08:00, 20:00". */
-function scheduleSummary(task: ScheduledTask): string {
-  const times = task.times.length ? task.times.join(", ") : "—";
-  if (task.frequency === "weekly") {
-    const days = [...task.weekdays]
-      .sort((a, b) => a - b)
-      .map((d) => WEEKDAY_LABELS[d])
-      .filter(Boolean);
-    const dayPart = days.length ? days.join(", ") : "No days";
-    return `${dayPart} · ${times}`;
-  }
-  return `Daily · ${times}`;
-}
-
-interface FormState {
-  editingId: number | null;
-  title: string;
-  prompt: string;
-  frequency: Frequency;
-  times: string[];
-  weekdays: number[];
-  enabled: boolean;
-}
-
-const EMPTY_FORM: FormState = {
-  editingId: null,
-  title: "",
-  prompt: "",
-  frequency: "daily",
-  times: [DEFAULT_TIME],
-  weekdays: [],
-  enabled: true,
-};
-
 export function SchedulesTab() {
   const { data, error, loading, reload } = useApi<SchedulesResponse>(() =>
     api.getSchedules(),
   );
 
+  const count = data?.tasks.length ?? 0;
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Schedules"
-        subtitle="Reminders the bot runs for you"
+        subtitle={count > 0 ? `${count} reminder${count > 1 ? "s" : ""}` : "Reminders the bot runs for you"}
         icon={AlarmClock}
       />
       {loading ? (
@@ -210,157 +113,60 @@ function SchedulesView({
 }) {
   const tz = data.timezone || "UTC";
   const [tasks, setTasks] = useState<ScheduledTask[]>(data.tasks);
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [status, setStatus] = useState<SaveStatus>("idle");
-  const [message, setMessage] = useState("");
+  const [editing, setEditing] = useState<ScheduledTask | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const runs = useApi<ScheduleRunsResponse>(() => api.getScheduleRuns());
 
-  // Sort upcoming: enabled tasks with a next run first (soonest), then disabled
-  // / null-next tasks last.
-  const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
-      const aKey = a.enabled && a.next_run_at ? a.next_run_at : null;
-      const bKey = b.enabled && b.next_run_at ? b.next_run_at : null;
-      if (aKey && bKey) return aKey < bKey ? -1 : aKey > bKey ? 1 : 0;
-      if (aKey) return -1;
-      if (bKey) return 1;
-      return 0;
-    });
-  }, [tasks]);
+  // Reminders that fall on the tapped calendar day (across active tasks).
+  const dayReminders = useMemo(() => {
+    if (!selectedDay) return [];
+    const out: { task: ScheduledTask; time: string }[] = [];
+    for (const task of tasks) {
+      if (!task.enabled || task.frequency === "as_needed") continue;
+      if (occursOnDay(task, selectedDay) === 0) continue;
+      for (const t of task.times) out.push({ task, time: t });
+    }
+    out.sort((a, b) => a.time.localeCompare(b.time));
+    return out;
+  }, [selectedDay, tasks]);
 
-  function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((f) => ({ ...f, [key]: value }));
+  function openNew() {
+    haptic("medium");
+    setEditing(null);
+    setWizardOpen(true);
   }
 
-  function resetForm() {
-    setForm(EMPTY_FORM);
-  }
-
-  function addTime() {
-    setForm((f) =>
-      f.times.length >= MAX_TIMES
-        ? f
-        : { ...f, times: [...f.times, DEFAULT_TIME] },
-    );
-  }
-
-  function removeTime(index: number) {
-    setForm((f) =>
-      f.times.length <= 1
-        ? f
-        : { ...f, times: f.times.filter((_, i) => i !== index) },
-    );
-  }
-
-  function setTime(index: number, value: string) {
-    setForm((f) => ({
-      ...f,
-      times: f.times.map((t, i) => (i === index ? value : t)),
-    }));
-  }
-
-  function toggleWeekday(day: number) {
-    setForm((f) => ({
-      ...f,
-      weekdays: f.weekdays.includes(day)
-        ? f.weekdays.filter((d) => d !== day)
-        : [...f.weekdays, day],
-    }));
-  }
-
-  function loadIntoForm(task: ScheduledTask) {
+  function openEdit(task: ScheduledTask) {
     haptic("light");
-    setStatus("idle");
-    setMessage("");
-    setForm({
-      editingId: task.id,
-      title: task.title,
-      prompt: task.prompt,
-      frequency: task.frequency === "weekly" ? "weekly" : "daily",
-      times: task.times.length
-        ? task.times.map((t) => {
-            const { hour, minute } = splitTime(t);
-            return `${hour}:${minute}`;
-          })
-        : [DEFAULT_TIME],
-      weekdays: [...task.weekdays],
-      enabled: task.enabled,
-    });
+    setEditing(task);
+    setWizardOpen(true);
   }
 
-  function validate(): string | null {
-    if (!form.title.trim()) return "Give it a title.";
-    if (!form.prompt.trim()) return "Add what the bot should ask or do.";
-    if (form.times.length < 1) return "Add at least one time.";
-    if (form.frequency === "weekly" && form.weekdays.length < 1)
-      return "Pick at least one weekday.";
-    return null;
+  function closeWizard() {
+    setWizardOpen(false);
+    setEditing(null);
   }
 
-  async function save() {
-    const err = validate();
-    if (err) {
-      setStatus("error");
-      setMessage(err);
-      return;
-    }
-    setStatus("saving");
-    setMessage("");
-    const input: ScheduleInput = {
-      title: form.title.trim(),
-      prompt: form.prompt.trim(),
-      frequency: form.frequency,
-      times: form.times,
-      weekdays: form.frequency === "weekly" ? [...form.weekdays].sort((a, b) => a - b) : [],
-      enabled: form.enabled,
-    };
-    try {
-      if (form.editingId != null) {
-        const updated = await api.updateSchedule(form.editingId, input);
-        setTasks((prev) =>
-          prev.map((t) => (t.id === updated.id ? updated : t)),
-        );
-      } else {
-        const created = await api.createSchedule(input);
-        setTasks((prev) => [created, ...prev]);
-      }
-      haptic("medium");
-      resetForm();
-      setStatus("saved");
-      setMessage("Saved");
-      window.setTimeout(() => setStatus("idle"), 2000);
-      onChanged();
-    } catch (e: unknown) {
-      setStatus("error");
-      setMessage(
-        e instanceof ApiError && e.isForbidden ? "Not allowed." : "Failed to save.",
-      );
-    }
+  // Re-fetch after a wizard save so optimistic local state stays consistent.
+  function afterSaved() {
+    onChanged();
+    api
+      .getSchedules()
+      .then((fresh) => setTasks(fresh.tasks))
+      .catch(() => {});
+    runs.reload();
   }
 
   async function toggleEnabled(task: ScheduledTask, enabled: boolean) {
-    // Optimistic flip; revert on failure.
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, enabled } : t)),
-    );
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, enabled } : t)));
     try {
-      const updated = await api.updateSchedule(task.id, {
-        title: task.title,
-        prompt: task.prompt,
-        frequency: task.frequency,
-        times: task.times,
-        weekdays: task.weekdays,
-        enabled,
-      });
-      setTasks((prev) =>
-        prev.map((t) => (t.id === updated.id ? updated : t)),
-      );
+      const updated = await api.updateSchedule(task.id, inputFromTask(task, enabled));
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     } catch {
       setTasks((prev) =>
-        prev.map((t) =>
-          t.id === task.id ? { ...t, enabled: task.enabled } : t,
-        ),
+        prev.map((t) => (t.id === task.id ? { ...t, enabled: task.enabled } : t)),
       );
     }
   }
@@ -371,13 +177,11 @@ function SchedulesView({
     try {
       await api.deleteSchedule(task.id);
       setTasks((prev) => prev.filter((t) => t.id !== task.id));
-      if (form.editingId === task.id) resetForm();
+      onChanged();
     } catch {
       // Non-fatal — leave the row in place.
     }
   }
-
-  const saving = status === "saving";
 
   return (
     <div className="flex flex-col gap-4">
@@ -400,204 +204,116 @@ function SchedulesView({
         </div>
       )}
 
-      {/* Create / edit form */}
+      {/* Calendar */}
       <Card>
-        <SectionTitle icon={form.editingId != null ? Pencil : Plus}>
-          {form.editingId != null ? "Edit reminder" : "New reminder"}
-        </SectionTitle>
-        <div className="space-y-4">
-          <Field label="Title">
-            <Input
-              value={form.title}
-              onChange={(e) => setField("title", e.target.value)}
-              placeholder="Workout check-in"
-              aria-label="Title"
-            />
-          </Field>
-
-          <Field label="Prompt">
-            <textarea
-              value={form.prompt}
-              onChange={(e) => setField("prompt", e.target.value)}
-              rows={3}
-              placeholder="Ask me how my workout went and check my progress"
-              aria-label="Prompt"
-              className={textareaClass}
-            />
-          </Field>
-
-          <Field label="Frequency">
-            <SegmentedControl
-              options={FREQUENCIES}
-              value={form.frequency}
-              onChange={(v) => setField("frequency", v)}
-            />
-          </Field>
-
-          {/* Times editor */}
-          <div>
-            <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
-              Times
-            </span>
-            <div className="space-y-2">
-              {form.times.map((t, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <TimeSelect
-                    value={t}
-                    onChange={(v) => setTime(i, v)}
-                    label={`Time ${i + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      haptic("light");
-                      removeTime(i);
-                    }}
-                    disabled={form.times.length <= 1}
-                    aria-label="Remove time"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border text-muted transition active:bg-surface-2 disabled:opacity-40"
+        <ScheduleCalendar
+          tasks={tasks}
+          selected={selectedDay}
+          onSelect={setSelectedDay}
+        />
+        {selectedDay && (
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              {dayLabel(selectedDay)}
+            </p>
+            {dayReminders.length === 0 ? (
+              <p className="text-sm text-muted">No reminders this day.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {dayReminders.map((r, i) => (
+                  <li
+                    key={`${r.task.id}-${i}`}
+                    className="flex items-center justify-between gap-3 rounded-xl bg-surface-2/50 px-3 py-2"
                   >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {form.times.length < MAX_TIMES && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={Plus}
-                onClick={addTime}
-                className="mt-2"
-              >
-                Add time
-              </Button>
+                    <span className="min-w-0 truncate text-sm text-text">
+                      {r.task.title}
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-primary">
+                      {timeChip(r.time)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-
-          {/* Weekdays — only for weekly */}
-          {form.frequency === "weekly" && (
-            <div>
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
-                Days
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {WEEKDAY_LABELS.map((label, day) => {
-                  const active = form.weekdays.includes(day);
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => {
-                        haptic("light");
-                        toggleWeekday(day);
-                      }}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                        active
-                          ? "bg-primary text-primary-fg shadow-soft"
-                          : "border border-border bg-surface-2/60 text-muted active:bg-surface-2"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text">Enabled</p>
-              <p className="text-xs text-muted">
-                Turn off to pause without deleting.
-              </p>
-            </div>
-            <Toggle
-              checked={form.enabled}
-              onChange={(v) => setField("enabled", v)}
-              label="Enabled"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <SaveMessage status={status} message={message} />
-          <div className="flex items-center gap-2">
-            {form.editingId != null && (
-              <Button variant="secondary" size="sm" onClick={resetForm}>
-                Cancel
-              </Button>
-            )}
-            <Button onClick={save} disabled={saving} icon={Save} size="sm">
-              {saving ? "Saving…" : form.editingId != null ? "Update" : "Create"}
-            </Button>
-          </div>
-        </div>
+        )}
       </Card>
 
-      {/* Upcoming */}
+      {/* Active reminders */}
       <Card>
-        <SectionTitle icon={AlarmClock}>Upcoming</SectionTitle>
-        <p className="mb-3 text-xs text-muted">
-          Times are in your timezone ({tz}). Change it in your profile.
-        </p>
-        {sortedTasks.length === 0 ? (
+        <SectionTitle icon={AlarmClock}>Active</SectionTitle>
+        {tasks.length === 0 ? (
           <EmptyState
             icon={AlarmClock}
             title="No reminders yet"
-            hint="Create one above and the bot will message you on schedule."
+            hint="Tap + to create one and the bot will message you on schedule."
           />
         ) : (
-          <ul className="space-y-2">
-            {sortedTasks.map((task) => (
-              <li
-                key={task.id}
-                className="flex items-start gap-3 rounded-2xl border border-border bg-surface-2/50 px-3.5 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`truncate text-sm font-medium ${task.enabled ? "text-text" : "text-muted"}`}
-                  >
-                    {task.title}
-                  </p>
-                  <p className="truncate text-xs text-muted">
-                    {scheduleSummary(task)}
-                  </p>
-                  {task.enabled && task.next_run_at && (
-                    <p className="mt-0.5 truncate text-xs text-muted">
-                      Next: {formatInTz(task.next_run_at, tz)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <Toggle
-                    checked={task.enabled}
-                    onChange={(v) => toggleEnabled(task, v)}
-                    label={`Toggle ${task.title}`}
-                  />
-                  <div className="flex items-center gap-1">
+          <ul className="space-y-2.5">
+            {tasks.map((task) => {
+              const chips = timeChips(task.times);
+              return (
+                <li
+                  key={task.id}
+                  className="rounded-2xl border border-border bg-surface-2/40 p-3.5"
+                >
+                  <div className="flex items-start gap-3">
                     <button
                       type="button"
-                      onClick={() => loadIntoForm(task)}
+                      onClick={() => openEdit(task)}
                       aria-label={`Edit ${task.title}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl text-muted transition active:bg-surface-2"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-grad-primary text-primary-fg shadow-soft"
                     >
-                      <Pencil className="h-4 w-4" aria-hidden />
+                      <Bot className="h-5 w-5" aria-hidden />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(task)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <p
+                        className={`truncate text-sm font-semibold ${task.enabled ? "text-text" : "text-muted"}`}
+                      >
+                        {task.title}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {frequencyLabel(task)}
+                      </p>
+                      {chips.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {chips.map((c, i) => (
+                            <span
+                              key={i}
+                              className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                    <Toggle
+                      checked={task.enabled}
+                      onChange={(v) => toggleEnabled(task, v)}
+                      label={`Toggle ${task.title}`}
+                    />
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-border pt-2.5">
+                    <span className="truncate text-[11px] text-muted">
+                      {formatDate(task.created_at)} · ongoing
+                    </span>
                     <button
                       type="button"
                       onClick={() => remove(task)}
                       aria-label={`Delete ${task.title}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl text-danger transition active:bg-danger/10"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-danger transition active:bg-danger/10"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
                     </button>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>
@@ -623,9 +339,7 @@ function SchedulesView({
                     className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ok ? "bg-success" : "bg-danger"}`}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted">
-                      {formatInTz(run.fired_at, tz)}
-                    </p>
+                    <p className="text-xs text-muted">{formatInTz(run.fired_at, tz)}</p>
                     {run.preview && (
                       <p className="mt-0.5 text-sm text-text [overflow-wrap:anywhere]">
                         {truncate(run.preview, 120)}
@@ -644,6 +358,24 @@ function SchedulesView({
           />
         )}
       </Card>
+
+      {/* Floating add button */}
+      <button
+        type="button"
+        onClick={openNew}
+        aria-label="New reminder"
+        className="fixed bottom-[calc(80px+env(safe-area-inset-bottom,0px))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-grad-primary text-primary-fg shadow-pop transition active:scale-95"
+      >
+        <Plus className="h-6 w-6" aria-hidden />
+      </button>
+
+      {wizardOpen && (
+        <ScheduleWizard
+          task={editing}
+          onClose={closeWizard}
+          onSaved={afterSaved}
+        />
+      )}
     </div>
   );
 }

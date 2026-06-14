@@ -41,8 +41,8 @@ function HeroRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-white/75">
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+    <div className="flex items-center gap-2 text-[13px] text-white/80">
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span>{label}</span>
       <span className="ml-auto truncate font-semibold text-white">{value}</span>
     </div>
@@ -63,7 +63,7 @@ export function ProfileCard({
   const [editing, setEditing] = useState(false);
 
   return (
-    <section className="relative overflow-hidden rounded-card-lg bg-grad-primary p-5 text-white shadow-pop">
+    <section className="relative overflow-hidden rounded-card-lg bg-grad-profile p-4 text-white shadow-pop">
       {/* Soft decorative glows for depth (no heavy photo background) */}
       <div
         aria-hidden
@@ -87,7 +87,7 @@ export function ProfileCard({
         <Pencil className="h-4 w-4" aria-hidden />
       </button>
 
-      <div className="relative flex items-center gap-4">
+      <div className="relative flex items-center gap-3">
         <button
           type="button"
           onClick={() => {
@@ -95,7 +95,7 @@ export function ProfileCard({
             setEditing(true);
           }}
           aria-label="Edit profile photo"
-          className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-2xl font-bold uppercase text-white shadow-soft ring-1 ring-white/40 backdrop-blur transition active:scale-95"
+          className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-xl font-bold uppercase text-white shadow-soft ring-1 ring-white/40 backdrop-blur transition active:scale-95"
         >
           {user.avatar ? (
             // Stored data URL — next/image isn't needed here.
@@ -120,7 +120,7 @@ export function ProfileCard({
         </div>
       </div>
 
-      <div className="relative mt-4 grid grid-cols-1 gap-2.5 rounded-2xl bg-white/10 p-4 backdrop-blur">
+      <div className="relative mt-3 grid grid-cols-1 gap-1.5 rounded-2xl bg-white/10 p-3 backdrop-blur">
         <HeroRow icon={Cpu} label="Model" value={model} />
         <HeroRow icon={Globe} label="Timezone" value={user.timezone} />
         {tier && (
@@ -145,7 +145,7 @@ export function ProfileCard({
             haptic("medium");
             onUpgrade?.();
           }}
-          className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-brand-700 shadow-soft transition active:scale-[0.99]"
+          className="relative mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-700 shadow-soft transition active:scale-[0.99]"
         >
           <Sparkles className="h-4 w-4" aria-hidden />
           Upgrade to Premium

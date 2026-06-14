@@ -50,9 +50,18 @@ def compute_next_run(
     times: list[str],
     weekdays: list[int],
     after: dt.datetime,
+    interval_days: int | None = None,
+    anchor: dt.date | None = None,
 ) -> dt.datetime | None:
     """Next UTC fire instant strictly after ``after`` (UTC), or None if the
-    schedule can never fire (no valid times, or weekly with no weekdays)."""
+    schedule can never fire.
+
+    Frequencies: ``daily`` (every day), ``weekly`` (chosen weekdays), ``interval``
+    (every ``interval_days`` days counted from ``anchor``), ``as_needed`` (never
+    fires → None). ``after`` and the result are UTC-aware.
+    """
+    if frequency == "as_needed":
+        return None
     tods = parse_times(times)
     if not tods:
         return None
@@ -66,10 +75,17 @@ def compute_next_run(
     if weekly and not wd:
         return None
 
-    # Look up to 8 days ahead to cover any weekday + time combination.
-    for offset in range(0, 8):
+    interval = frequency == "interval"
+    n = max(1, interval_days or 1)
+    anchor_date = anchor or local_after.date()
+    # Cover any weekday/interval + time combination within one full cycle.
+    horizon = max(8, n + 1)
+
+    for offset in range(0, horizon):
         day = (local_after + dt.timedelta(days=offset)).date()
         if weekly and day.weekday() not in wd:  # type: ignore[operator]
+            continue
+        if interval and (day - anchor_date).days % n != 0:
             continue
         for h, m in tods:
             cand = dt.datetime(day.year, day.month, day.day, h, m, tzinfo=tz)

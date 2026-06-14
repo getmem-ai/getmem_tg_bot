@@ -163,9 +163,11 @@ class ScheduledTask(Base):
     )
     title: Mapped[str] = mapped_column(String(128))
     prompt: Mapped[str] = mapped_column(Text)
-    frequency: Mapped[str] = mapped_column(String(16), default="daily")  # daily|weekly
+    # daily | weekly | interval | as_needed
+    frequency: Mapped[str] = mapped_column(String(16), default="daily")
     times: Mapped[list] = mapped_column(JSON, default=list)  # ["08:00", "20:00"]
     weekdays: Mapped[list] = mapped_column(JSON, default=list)  # [0..6], Mon=0
+    interval_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     enabled: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=sa_true()
     )

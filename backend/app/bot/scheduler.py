@@ -93,6 +93,8 @@ async def _fire(bot, db, service, task, now):  # type: ignore[no-untyped-def]
             times=task.times or [],
             weekdays=task.weekdays or [],
             after=now,
+            interval_days=task.interval_days,
+            anchor=task.created_at.date() if task.created_at else None,
         )
         if user is not None
         else None

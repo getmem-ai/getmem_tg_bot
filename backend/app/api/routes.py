@@ -283,7 +283,8 @@ async def set_my_profile(
 
 _MAX_TASKS = 20
 _MAX_TIMES = 6
-_FREQS = {"daily", "weekly"}
+_MAX_INTERVAL = 365
+_FREQS = {"daily", "weekly", "interval", "as_needed"}
 
 
 def _schedule_out(task) -> ScheduleOut:  # type: ignore[no-untyped-def]
@@ -294,6 +295,7 @@ def _schedule_out(task) -> ScheduleOut:  # type: ignore[no-untyped-def]
         frequency=task.frequency,
         times=list(task.times or []),
         weekdays=list(task.weekdays or []),
+        interval_days=task.interval_days,
         enabled=task.enabled,
         next_run_at=task.next_run_at,
         last_run_at=task.last_run_at,
@@ -301,27 +303,35 @@ def _schedule_out(task) -> ScheduleOut:  # type: ignore[no-untyped-def]
     )
 
 
-def _validate_schedule(body: ScheduleIn) -> tuple[str, str, str, list[str], list[int]]:
-    """Validate + normalise a schedule. Raises HTTPException(400) on bad input."""
+def _validate_schedule(
+    body: ScheduleIn,
+) -> tuple[str, str, str, list[str], list[int], int | None]:
+    """Validate + normalise a schedule. Raises HTTPException(400) on bad input.
+
+    Returns (title, prompt, frequency, times, weekdays, interval_days)."""
     title = (body.title or "").strip()
     prompt = (body.prompt or "").strip()
     if not title or not prompt:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Title and prompt are required."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Title and prompt are required.",
         )
     frequency = body.frequency if body.frequency in _FREQS else "daily"
+
     tods = parse_times(body.times)
-    if not tods:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Add at least one valid time (HH:MM).",
-        )
     if len(tods) > _MAX_TIMES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"At most {_MAX_TIMES} times per task.",
         )
+    # "As needed" tasks have no fixed times; everything else needs at least one.
+    if frequency != "as_needed" and not tods:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Add at least one valid time (HH:MM).",
+        )
     times = [f"{h:02d}:{m:02d}" for h, m in tods]
+
     weekdays: list[int] = []
     if frequency == "weekly":
         weekdays = sorted({w for w in body.weekdays if isinstance(w, int) and 0 <= w <= 6})
@@ -330,7 +340,17 @@ def _validate_schedule(body: ScheduleIn) -> tuple[str, str, str, list[str], list
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Pick at least one weekday for a weekly schedule.",
             )
-    return title[:128], prompt[:2000], frequency, times, weekdays
+
+    interval_days: int | None = None
+    if frequency == "interval":
+        interval_days = body.interval_days or 0
+        if not 1 <= interval_days <= _MAX_INTERVAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Interval must be between 1 and {_MAX_INTERVAL} days.",
+            )
+
+    return title[:128], prompt[:2000], frequency, times, weekdays, interval_days
 
 
 @router.get("/me/schedules", response_model=SchedulesOut)
@@ -368,13 +388,16 @@ async def create_schedule(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"You can have at most {_MAX_TASKS} reminders.",
         )
-    title, prompt, frequency, times, weekdays = _validate_schedule(body)
+    title, prompt, frequency, times, weekdays, interval_days = _validate_schedule(body)
+    now = dt.datetime.now(dt.timezone.utc)
     next_run = compute_next_run(
         timezone=db_user.timezone or "UTC",
         frequency=frequency,
         times=times,
         weekdays=weekdays,
-        after=dt.datetime.now(dt.timezone.utc),
+        after=now,
+        interval_days=interval_days,
+        anchor=now.date(),
     )
     task = await repo.create_task(
         session,
@@ -384,6 +407,7 @@ async def create_schedule(
         frequency=frequency,
         times=times,
         weekdays=weekdays,
+        interval_days=interval_days,
         enabled=body.enabled,
         next_run_at=next_run if body.enabled else None,
     )
@@ -402,12 +426,13 @@ async def update_schedule(
     task = await repo.get_task(session, task_id)
     if task is None or task.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
-    title, prompt, frequency, times, weekdays = _validate_schedule(body)
+    title, prompt, frequency, times, weekdays, interval_days = _validate_schedule(body)
     task.title = title
     task.prompt = prompt
     task.frequency = frequency
     task.times = times
     task.weekdays = weekdays
+    task.interval_days = interval_days
     task.enabled = body.enabled
     task.next_run_at = (
         compute_next_run(
@@ -416,6 +441,8 @@ async def update_schedule(
             times=times,
             weekdays=weekdays,
             after=dt.datetime.now(dt.timezone.utc),
+            interval_days=interval_days,
+            anchor=task.created_at.date() if task.created_at else None,
         )
         if body.enabled
         else None

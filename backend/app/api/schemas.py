@@ -370,9 +370,10 @@ class OnboardingOut(BaseModel):
 class ScheduleIn(BaseModel):
     title: str
     prompt: str
-    frequency: str = "daily"  # daily | weekly
+    frequency: str = "daily"  # daily | weekly | interval | as_needed
     times: list[str] = []  # ["08:00", "20:00"] in the user's timezone
     weekdays: list[int] = []  # 0=Mon … 6=Sun (used when frequency == weekly)
+    interval_days: int | None = None  # used when frequency == interval
     enabled: bool = True
 
 
@@ -383,6 +384,7 @@ class ScheduleOut(BaseModel):
     frequency: str
     times: list[str]
     weekdays: list[int]
+    interval_days: int | None
     enabled: bool
     next_run_at: dt.datetime | None
     last_run_at: dt.datetime | None
