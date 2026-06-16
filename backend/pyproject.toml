@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "GetMem community" }]
 dependencies = [
-    "aiogram>=3.22,<4",
+    "aiogram>=3.29,<4",
     "openai>=2.0,<3",
     "anthropic>=0.40",
     "sqlalchemy[asyncio]>=2.0",

@@ -77,9 +77,10 @@ TUNE_FAILED = "😕 Couldn't update that just now. Please try again in a moment.
 
 
 def tune_done(role: str) -> str:
+    # Expandable blockquote (Bot API 10.1 / aiogram 3.29) — long roles collapse.
     return (
         "✅ Done — from now on I'll follow this for you:\n\n"
-        f"<blockquote>{html.escape(role)}</blockquote>\n\n"
+        f"<blockquote expandable>{html.escape(role)}</blockquote>\n\n"
         "Run /tune again to adjust, or manage it in your dashboard settings."
     )
 
