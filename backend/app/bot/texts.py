@@ -25,32 +25,34 @@ def start(
         extras.append("🖼 You can send me <b>photos</b> and I'll read them.")
     extra_block = ("\n".join(extras) + "\n") if extras else ""
     return (
-        f"👋 Hi {name}!\n\n"
-        f"I'm a chat assistant powered by free AI models via OpenRouter.\n"
+        f"👋 <b>Hi {html.escape(name)}!</b>\n\n"
+        "<blockquote>I'm your AI chat assistant — powered by free models via "
+        "OpenRouter, with automatic fallback so you're never stuck.</blockquote>\n"
         f"{memory_line}\n"
         f"{extra_block}\n"
-        "Just send me a message and let's talk.\n\n"
-        "Useful commands:\n"
-        "• /help — what I can do\n"
-        "• /me — your usage & plan\n"
+        "Just send me a message and let's talk. 💬\n\n"
+        "<b>Quick commands</b>\n"
+        "• /help — everything I can do\n"
+        "• /me — your usage &amp; plan\n"
         "• /model — pick the AI model\n"
         "• /app — open your dashboard\n"
-        "• /reset — clear our recent chat history\n"
-        "• /forget — wipe everything I remember about you"
+        "• /reset — clear our recent chat\n"
+        "• /forget — wipe what I remember about you"
     )
 
 
 HELP = (
-    "<b>What I can do</b>\n\n"
-    "💬 Chat naturally — I keep context and remember you over time.\n"
-    "🧠 Memory is powered by <a href=\"https://getmem.ai\">GetMem</a>.\n"
-    "🤖 I run on rotating free models and fall back automatically.\n\n"
+    "🤖 <b>What I can do</b>\n\n"
+    "<blockquote>Chat naturally — I keep context and <b>remember you over time</b> "
+    "(memory by <a href=\"https://getmem.ai\">GetMem</a>). I run on rotating models "
+    "with automatic fallback, understand <b>voice</b>, and on Premium I can read "
+    "<b>photos</b> too.</blockquote>\n"
     "<b>Commands</b>\n"
     "/start — intro\n"
     "/me — your plan, usage and remaining messages today\n"
     "/model — choose which AI model answers you\n"
     "/app — open your dashboard (Mini App)\n"
-    "/upgrade — unlock premium models &amp; higher limits\n"
+    "/upgrade — unlock premium models &amp; higher limits ⭐\n"
     "/tune — teach me how to behave for you (tunes my style to your goals)\n"
     "/reset — forget the recent chat window (short-term)\n"
     "/forget — erase everything I remember about you (long-term)\n"
@@ -97,15 +99,15 @@ def me(
     filled = 0 if limit <= 0 else min(bar_total, round(used / limit * bar_total))
     bar = "▰" * filled + "▱" * (bar_total - filled)
     plan = "⭐ Premium" if tier == "premium" else "🆓 Free"
-    lines = [
-        "<b>Your account</b>",
-        f"Plan: {plan}",
-        f"Today: {used}/{limit}  {bar}",
-        f"Model: <code>{model}</code>",
+    rows = [
+        f"Plan: <b>{plan}</b>",
+        f"Today: <b>{used}/{limit}</b>  {bar}",
+        f"Model: <code>{html.escape(model)}</code>",
     ]
     if premium_until:
-        lines.append(f"Premium until: {premium_until}")
-    return "\n".join(lines)
+        rows.append(f"Premium until: <b>{premium_until}</b>")
+    body = "\n".join(rows)
+    return f"👤 <b>Your account</b>\n<blockquote>{body}</blockquote>"
 
 
 def limit_reached(tier: str, limit: int) -> str:
@@ -127,12 +129,15 @@ UPGRADE_NONE = (
 
 
 def upgrade_offer(tiers: list) -> str:  # list[TierConfig]
-    lines = ["<b>⭐ Upgrade your plan</b>\n"]
+    lines = ["⭐ <b>Upgrade your plan</b>\n"]
     for t in tiers:
+        name = html.escape(t.name)
         lines.append(
-            f"<b>{t.name}</b> — {t.price_stars} Stars / {t.period_days} days\n"
+            "<blockquote>"
+            f"<b>{name}</b> — <b>{t.price_stars}</b> ⭐ / {t.period_days} days\n"
             f"• Up to <b>{t.daily_limit}</b> messages per day\n"
-            f"• {len(t.models)} models incl. premium\n"
+            f"• <b>{len(t.models)}</b> models incl. premium"
+            "</blockquote>"
         )
     lines.append("Pick a plan below to pay with Telegram Stars.")
     return "\n".join(lines)
@@ -147,9 +152,12 @@ def payment_description(name: str, days: int) -> str:
 
 
 def payment_success(name: str, days: int) -> str:
+    safe = html.escape(name)
     return (
-        f"🎉 Payment received — welcome to <b>{name}</b>!\n\n"
-        f"You're upgraded for {days} days. Set a model with /model. Enjoy!"
+        f"🎉 <b>Payment received — welcome to {safe}!</b>\n\n"
+        f"<blockquote>You're upgraded for <b>{days}</b> days. Higher limits and "
+        "premium models are live.</blockquote>\n"
+        "Set your model with /model. Enjoy! ⭐"
     )
 
 
@@ -200,8 +208,8 @@ def all_busy(is_premium: bool) -> str:
         )
     return (
         "😕 All the free models are busy right now.\n\n"
-        "⭐ <b>Premium</b> models (Claude, GPT-4o, Gemini Pro) are far more "
-        "reliable and rarely busy — tap /upgrade to skip the queue.\n"
+        "<blockquote>⭐ <b>Premium</b> models (Claude, GPT-4o, Gemini Pro) are far "
+        "more reliable and rarely busy — tap /upgrade to skip the queue.</blockquote>\n"
         "Otherwise, please try again in a minute."
     )
 
@@ -216,12 +224,14 @@ APP_DISABLED = (
 # -- Admin --------------------------------------------------------------------
 def admin_panel(*, voice_on: bool, disabled_models: int, stats: dict[str, int]) -> str:
     return (
-        "<b>🛠 Admin panel</b>\n\n"
+        "🛠 <b>Admin panel</b>\n"
+        "<blockquote>"
         f"🎤 Voice: <b>{'ON' if voice_on else 'OFF'}</b>\n"
         f"🚫 Disabled models: <b>{disabled_models}</b>\n\n"
-        f"👥 Users: {stats['users']} (⭐ {stats['premium']})\n"
-        f"💬 Messages today: {stats['messages_today']}\n"
-        f"💳 Payments: {stats['payments']}\n\n"
+        f"👥 Users: <b>{stats['users']}</b> (⭐ {stats['premium']})\n"
+        f"💬 Messages today: <b>{stats['messages_today']}</b>\n"
+        f"💳 Payments: <b>{stats['payments']}</b>"
+        "</blockquote>\n"
         "Use the buttons below to manage the bot live.\n"
         "✏️ System prompt: /getprompt · /setprompt &lt;text&gt;"
     )
@@ -238,17 +248,19 @@ ADMIN_SETPROMPT_USAGE = (
 
 def admin_prompt_show(prompt: str, is_default: bool) -> str:
     src = "default (from env)" if is_default else "custom (stored in DB)"
+    body = html.escape(_truncate(prompt, 3500))
     return (
-        f"<b>Current system prompt</b> — {src}:\n\n"
-        f"<code>{_truncate(prompt, 3500)}</code>\n\n"
+        f"<b>Current system prompt</b> — {src}:\n"
+        f"<blockquote expandable>{body}</blockquote>\n"
         "Change it with /setprompt or from the Mini App dashboard."
     )
 
 
 def admin_prompt_saved(prompt: str) -> str:
+    body = html.escape(_truncate(prompt, 3500))
     return (
-        "✅ System prompt updated and saved. It applies to all users now.\n\n"
-        f"<code>{_truncate(prompt, 3500)}</code>"
+        "✅ System prompt updated and saved. It applies to all users now.\n"
+        f"<blockquote expandable>{body}</blockquote>"
     )
 
 
@@ -278,7 +290,8 @@ VOICE_EMPTY = "🤔 I couldn't make out any speech in that. Mind trying again?"
 
 
 def voice_heard(text: str) -> str:
-    return f"🎤 <i>{text}</i>"
+    # Escape + quote what we heard (transcripts can contain < & and be long).
+    return f"🎤 <blockquote expandable>{html.escape(text)}</blockquote>"
 
 
 def voice_too_long(max_seconds: int) -> str:
